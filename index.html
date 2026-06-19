@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My Art Program</title>
     <style>
+        /* Base page alignment */
         body {
             margin: 0;
             padding: 0;
@@ -23,10 +24,12 @@
             -webkit-user-select: none;
         }
 
+        /* Screen Toggling */
         .hidden {
             display: none !important;
         }
 
+        /* Start Menu Box */
         .menu-container {
             background-color: #262626;
             padding: 30px;
@@ -37,6 +40,7 @@
             z-index: 200;
         }
 
+        /* Logo Text Placeholder */
         .logo-text {
             font-size: 28px;
             font-weight: bold;
@@ -45,6 +49,7 @@
             color: #007acc;
         }
 
+        /* Size Inputs Layout */
         .input-group {
             margin: 15px 0;
             display: flex;
@@ -62,6 +67,7 @@
             border-radius: 4px;
         }
 
+        /* Proportional Preview Box */
         .preview-box {
             margin: 20px auto;
             border: 1px solid #ffffff;
@@ -70,6 +76,7 @@
             max-height: 150px;
         }
 
+        /* Action Buttons */
         .confirm-btn {
             background-color: #007acc;
             color: white;
@@ -103,6 +110,7 @@
             display: none;
         }
 
+        /* ART WORKSPACE */
         .workspace {
             position: absolute;
             top: 0;
@@ -113,6 +121,7 @@
             touch-action: none;
         }
 
+        /* Viewport container for transforms */
         .transform-container {
             position: absolute;
             transform-origin: center center;
@@ -124,6 +133,7 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
             border: 1px solid #2d2d2d;
             display: block;
+            touch-action: none;
         }
 
         /* --- TOP BAR UI --- */
@@ -174,12 +184,12 @@
 
         .divider {
             width: 1px;
-            height: 20px;
+            height: 24px;
             background-color: #2a2a2a;
-            margin: 0 10px 0 5px;
+            margin: 0 10px 0 0;
         }
 
-        /* Dropdown Menu */
+        /* Dropdown Menu Styling */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -211,7 +221,7 @@
             color: #ffffff;
         }
 
-        /* Color Panel */
+        /* --- COLOR DROPDOWN PANEL UI --- */
         .color-panel {
             display: none;
             position: absolute;
@@ -301,7 +311,7 @@
 
         .color-swatch {
             width: 100%;
-            padding-top: 100%;
+            padding-top: 100%; 
             border-radius: 4px;
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.05);
@@ -316,72 +326,71 @@
             display: block !important;
         }
 
-        /* --- LEFT SIDE SLIDERS UI --- */
+        /* --- FIXED & WIDER VERTICAL SLIDERS UI --- */
         .left-controls {
             position: absolute;
             left: 20px;
             top: 80px;
             display: flex;
             flex-direction: column;
-            gap: 40px;
+            gap: 30px;
             z-index: 10;
-            background: rgba(18, 18, 18, 0.4);
-            padding: 15px 10px;
+            background: rgba(18, 18, 18, 0.6);
+            padding: 20px 12px;
             border-radius: 20px;
-            backdrop-filter: blur(5px);
-            -webkit-backdrop-filter: blur(5px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid #2a2a2a;
         }
 
         .slider-wrapper {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            width: 40px;
+            gap: 12px;
+            width: 45px;
+            height: 200px;
         }
 
         .slider-label {
-            font-size: 11px;
+            font-size: 10px;
             color: #aaa;
             text-transform: uppercase;
             letter-spacing: 1px;
+            font-weight: bold;
         }
 
-        .vertical-slider {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 6px;
-            height: 150px;
-            background: #444;
-            border-radius: 3px;
-            outline: none;
-            transform: rotate(-180deg); 
-            direction: rtl; 
-            margin: 0;
-            padding: 0;
-        }
-
-        .vertical-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
-            background: #ffffff;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        .slider-container {
             position: relative;
-            margin-top: 0px; 
+            width: 14px; /* Wider slider track container */
+            height: 150px;
+            background: #333;
+            border-radius: 7px;
+            cursor: pointer;
+            touch-action: none;
         }
 
-        .vertical-slider::-moz-range-thumb {
-            width: 18px;
-            height: 18px;
-            border-radius: 50%;
+        .slider-track-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: #555;
+            border-radius: 7px;
+            pointer-events: none;
+        }
+
+        .slider-handle {
+            position: absolute;
+            left: 50%;
+            bottom: 100%;
+            width: 22px; /* Large easy-to-hit mobile handles */
+            height: 22px;
             background: #ffffff;
-            cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-            border: none;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+            transform: translate(-50%, 50%); /* Keeps handles perfectly centered on the track */
+            pointer-events: none;
         }
     </style>
 </head>
@@ -447,7 +456,7 @@
                 <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
             </button>
             <button class="icon-btn" id="redoBtn" title="Redo" disabled>
-                <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 1.03-10.02 5.22l2.37.78c1.05-3.19 4.06-5.5 7.65-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
             </button>
         </div>
 
@@ -469,11 +478,17 @@
         <div class="left-controls">
             <div class="slider-wrapper">
                 <span class="slider-label">Size</span>
-                <input type="range" id="brushSize" class="vertical-slider" min="1" max="100" value="10">
+                <div id="sizeSlider" class="slider-container">
+                    <div id="sizeTrackFill" class="slider-track-fill"></div>
+                    <div id="sizeHandle" class="slider-handle"></div>
+                </div>
             </div>
             <div class="slider-wrapper">
                 <span class="slider-label">Opac</span>
-                <input type="range" id="brushOpacity" class="vertical-slider" min="0" max="100" value="100">
+                <div id="opacSlider" class="slider-container">
+                    <div id="opacTrackFill" class="slider-track-fill"></div>
+                    <div id="opacHandle" class="slider-handle"></div>
+                </div>
             </div>
         </div>
 
@@ -483,6 +498,7 @@
     </div>
 
     <script>
+        // UI Navigation Elements
         const startMenu = document.getElementById('startMenu');
         const canvasWidthInput = document.getElementById('canvasWidth');
         const canvasHeightInput = document.getElementById('canvasHeight');
@@ -494,9 +510,6 @@
         const transformContainer = document.getElementById('transformContainer');
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
-
-        const brushSizeSlider = document.getElementById('brushSize');
-        const brushOpacitySlider = document.getElementById('brushOpacity');
 
         const menuBtn = document.getElementById('menuBtn');
         const menuDropdown = document.getElementById('menuDropdown');
@@ -511,28 +524,90 @@
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
 
-        // History Management Stack
-        let undoStack = [];
-        let redoStack = [];
-        const MAX_HISTORY = 25;
+        // Custom Slider Target DOM Elements
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeTrackFill = document.getElementById('sizeTrackFill');
+        const sizeHandle = document.getElementById('sizeHandle');
 
-        // Viewport Coordinates (Pan, Zoom, Rotate)
+        const opacSlider = document.getElementById('opacSlider');
+        const opacTrackFill = document.getElementById('opacTrackFill');
+        const opacHandle = document.getElementById('opacHandle');
+
+        // State Tracking Data Variables
         let scale = 1;
         let panX = 0;
         let panY = 0;
         let rotation = 0; 
 
-        // Draw State Tracker Variables
         let drawing = false;
         let currentBrushSize = 10;
         let currentOpacity = 1.0;
         let activeColor = '#000000';
-        let provisionalColor = '#000000'; // Changes on wheel, but doesn't hit recent palette history yet
+        let strokeHasPainted = false; // Tracks if a stroke actually hits the canvas
+
         let recentColors = Array(20).fill('#ffffff');
 
-        brushSizeSlider.addEventListener('input', (e) => currentBrushSize = parseInt(e.target.value));
-        brushOpacitySlider.addEventListener('input', (e) => currentOpacity = parseInt(e.target.value) / 100);
+        // Undo/Redo Engine State Buffers
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 20;
 
+        // --- CUSTOM NATIVE TOUCH SLIDER LOGIC ---
+        function setupCustomSlider(container, fill, handle, min, max, initialValue, onChange) {
+            let isDragging = false;
+
+            function updateSliderFromCoords(clientY) {
+                const rect = container.getBoundingClientRect();
+                // Calculate percentages based from base track up
+                let percentage = (rect.bottom - clientY) / rect.height;
+                percentage = Math.max(0, Math.min(1, percentage));
+
+                fill.style.height = (percentage * 100) + '%';
+                handle.style.bottom = (percentage * 100) + '%';
+
+                const calculatedValue = min + percentage * (max - min);
+                onChange(calculatedValue);
+            }
+
+            // Set initial state
+            const initialPercentage = (initialValue - min) / (max - min);
+            fill.style.height = (initialPercentage * 100) + '%';
+            handle.style.bottom = (initialPercentage * 100) + '%';
+
+            container.addEventListener('pointerdown', (e) => {
+                e.stopPropagation();
+                container.setPointerCapture(e.pointerId);
+                isDragging = true;
+                updateSliderFromCoords(e.clientY);
+            });
+
+            container.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                e.stopPropagation();
+                updateSliderFromCoords(e.clientY);
+            });
+
+            const stopDrag = (e) => {
+                if (isDragging) {
+                    container.releasePointerCapture(e.pointerId);
+                    isDragging = false;
+                }
+            };
+
+            container.addEventListener('pointerup', stopDrag);
+            container.addEventListener('pointercancel', stopDrag);
+        }
+
+        // Initialize Slider Configurations
+        setupCustomSlider(sizeSlider, sizeTrackFill, sizeHandle, 1, 100, 10, (val) => {
+            currentBrushSize = Math.round(val);
+        });
+
+        setupCustomSlider(opacSlider, opacTrackFill, opacHandle, 0, 100, 100, (val) => {
+            currentOpacity = val / 100;
+        });
+
+        // Dropdown Menu Toggles
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             colorPanel.classList.remove('show');
@@ -546,119 +621,21 @@
             if (colorPanel.classList.contains('show')) drawColorWheel();
         });
 
-        closeColorBtn.addEventListener('click', () => colorPanel.classList.remove('show'));
+        closeColorBtn.addEventListener('click', () => {
+            colorPanel.classList.remove('show');
+        });
 
         window.addEventListener('click', (e) => {
             if (!menuDropdown.contains(e.target) && e.target !== menuBtn) menuDropdown.classList.remove('show');
             if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) colorPanel.classList.remove('show');
         });
 
-        function drawColorWheel() {
-            const width = colorWheel.width, height = colorWheel.height;
-            const cx = width / 2, cy = height / 2, r = width / 2;
-            wheelCtx.clearRect(0,0,width,height);
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
-                    if (d <= r) {
-                        const angle = Math.atan2(dy, dx) + Math.PI;
-                        const hue = (angle * 180) / Math.PI;
-                        wheelCtx.fillStyle = `hsl(${hue}, ${(d / r) * 100}%, 50%)`;
-                        wheelCtx.fillRect(x, y, 1, 1);
-                    }
-                }
-            }
-        }
-
-        colorWheel.addEventListener('pointerdown', selectWheelColor);
-        colorWheel.addEventListener('pointermove', (e) => { if (e.buttons === 1) selectWheelColor(e); });
-
-        function selectWheelColor(e) {
-            const rect = colorWheel.getBoundingClientRect();
-            const x = Math.floor(e.clientX - rect.left), y = Math.floor(e.clientY - rect.top);
-            if(x >= 0 && x < colorWheel.width && y >= 0 && y < colorWheel.height) {
-                const imgData = wheelCtx.getImageData(x, y, 1, 1).data;
-                if (imgData[3] > 0) {
-                    const hex = "#" + ((1 << 24) + (imgData[0] << 16) + (imgData[1] << 8) + imgData[2]).toString(16).slice(1);
-                    provisionalColor = hex;
-                    hexInput.value = hex;
-                }
-            }
-        }
-
-        hexInput.addEventListener('change', (e) => {
-            let val = e.target.value;
-            if(!val.startsWith('#')) val = '#' + val;
-            if(/^#[0-9A-F]{6}$/i.test(val)) {
-                provisionalColor = val;
-            } else {
-                hexInput.value = provisionalColor;
-            }
-        });
-
-        function pushToRecentColors(hex) {
-            if (recentColors[0] !== hex) {
-                recentColors.unshift(hex);
-                recentColors.pop();
-                renderPalette();
-            }
-        }
-
-        function renderPalette() {
-            paletteGrid.innerHTML = '';
-            recentColors.forEach(color => {
-                const swatch = document.createElement('div');
-                swatch.className = 'color-swatch';
-                swatch.style.backgroundColor = color;
-                swatch.addEventListener('click', () => {
-                    provisionalColor = color;
-                    activeColor = color;
-                    hexInput.value = color;
-                });
-                paletteGrid.appendChild(swatch);
-            });
-        }
-        renderPalette();
-
-        function saveState() {
-            if (undoStack.length >= MAX_HISTORY) undoStack.shift();
-            undoStack.push(canvas.toDataURL());
-            redoStack = []; // Clear redo stack on new action
-            updateHistoryButtons();
-        }
-
-        function updateHistoryButtons() {
-            undoBtn.disabled = undoStack.length === 0;
-            redoBtn.disabled = redoStack.length === 0;
-        }
-
-        undoBtn.addEventListener('click', () => {
-            if (undoStack.length === 0) return;
-            redoStack.push(canvas.toDataURL());
-            let previousState = undoStack.pop();
-            restoreState(previousState);
-        });
-
-        redoBtn.addEventListener('click', () => {
-            if (redoStack.length === 0) return;
-            undoStack.push(canvas.toDataURL());
-            let nextState = redoStack.pop();
-            restoreState(nextState);
-        });
-
-        function restoreState(dataURL) {
-            let img = new Image();
-            img.onload = function() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, 0, 0);
-                updateHistoryButtons();
-            };
-            img.src = dataURL;
-        }
-
+        // Canvas Proportional Preview Setup
         function updatePreview() {
-            const w = parseInt(canvasWidthInput.value) || 1, h = parseInt(canvasHeightInput.value) || 1;
+            const w = parseInt(canvasWidthInput.value) || 1;
+            const h = parseInt(canvasHeightInput.value) || 1;
             const maxDisplaySize = 150;
+
             if (w >= h) {
                 previewBox.style.width = maxDisplaySize + 'px';
                 previewBox.style.height = (h / w) * maxDisplaySize + 'px';
@@ -667,6 +644,7 @@
                 previewBox.style.width = (w / h) * maxDisplaySize + 'px';
             }
         }
+
         canvasWidthInput.addEventListener('input', updatePreview);
         canvasHeightInput.addEventListener('input', updatePreview);
         updatePreview();
@@ -683,26 +661,67 @@
             applyTransforms();
         }
 
+        function saveHistoryState() {
+            // Push active state into stack history
+            undoStack.push(canvas.toDataURL());
+            if (undoStack.length > MAX_HISTORY) undoStack.shift();
+            redoStack = []; // Flush redo tracks on brand new actions
+            updateHistoryButtons();
+        }
+
+        function updateHistoryButtons() {
+            undoBtn.disabled = undoStack.length === 0;
+            redoBtn.disabled = redoStack.length === 0;
+        }
+
+        function applyHistoryState(targetStack, destinationStack) {
+            if (targetStack.length === 0) return;
+            
+            destinationStack.push(canvas.toDataURL());
+            const stateData = targetStack.pop();
+
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                updateHistoryButtons();
+            };
+            img.src = stateData;
+        }
+
+        undoBtn.addEventListener('click', () => applyHistoryState(undoStack, redoStack));
+        redoBtn.addEventListener('click', () => applyHistoryState(redoStack, undoStack));
+
         function initCanvas(width, height) {
             canvas.width = width;
             canvas.height = height;
+
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             startMenu.classList.add('hidden');
             workspace.classList.remove('hidden');
+            
             transformContainer.style.width = canvas.width + 'px';
             transformContainer.style.height = canvas.height + 'px';
+            
             centerCanvas();
             attachDrawingListeners();
+            undoStack = [];
+            redoStack = [];
+            updateHistoryButtons();
         }
 
         confirmBtn.addEventListener('click', () => {
-            initCanvas(parseInt(canvasWidthInput.value) || 800, parseInt(canvasHeightInput.value) || 600);
+            const w = parseInt(canvasWidthInput.value) || 800;
+            const h = parseInt(canvasHeightInput.value) || 600;
+            initCanvas(w, h);
         });
 
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
+
             const reader = new FileReader();
             reader.onload = function(event) {
                 const img = new Image();
@@ -715,7 +734,86 @@
             reader.readAsDataURL(file);
         });
 
-        /* STABILIZED DRAW ENGINE & STRUCTURAL POINTER CAPTURES */
+        // Color Picker Systems
+        function drawColorWheel() {
+            const width = colorWheel.width;
+            const height = colorWheel.height;
+            const cx = width / 2;
+            const cy = height / 2;
+            const r = width / 2;
+
+            wheelCtx.clearRect(0,0,width,height);
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    const d = Math.hypot(dx, dy);
+
+                    if (d <= r) {
+                        const angle = Math.atan2(dy, dx) + Math.PI;
+                        const hue = (angle * 180) / Math.PI;
+                        const sat = d / r;
+                        wheelCtx.fillStyle = `hsl(${hue}, ${sat * 100}%, 50%)`;
+                        wheelCtx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+        }
+
+        colorWheel.addEventListener('pointerdown', selectWheelColor);
+        colorWheel.addEventListener('pointermove', (e) => {
+            if (e.buttons === 1) selectWheelColor(e);
+        });
+
+        function selectWheelColor(e) {
+            const rect = colorWheel.getBoundingClientRect();
+            const x = Math.floor(e.clientX - rect.left);
+            const y = Math.floor(e.clientY - rect.top);
+
+            if(x >= 0 && x < colorWheel.width && y >= 0 && y < colorWheel.height) {
+                const imgData = wheelCtx.getImageData(x, y, 1, 1).data;
+                if (imgData[3] > 0) {
+                    const hex = "#" + ((1 << 24) + (imgData[0] << 16) + (imgData[1] << 8) + imgData[2]).toString(16).slice(1);
+                    activeColor = hex;
+                    hexInput.value = hex;
+                }
+            }
+        }
+
+        hexInput.addEventListener('change', (e) => {
+            let val = e.target.value;
+            if(!val.startsWith('#')) val = '#' + val;
+            if(/^#[0-9A-F]{6}$/i.test(val)) {
+                activeColor = val;
+            } else {
+                hexInput.value = activeColor;
+            }
+        });
+
+        function commitColorToPalette(hex) {
+            if (recentColors[0] !== hex) {
+                recentColors.unshift(hex);
+                recentColors.pop();
+                renderPalette();
+            }
+        }
+
+        function renderPalette() {
+            paletteGrid.innerHTML = '';
+            recentColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.addEventListener('click', () => {
+                    activeColor = color;
+                    hexInput.value = color;
+                });
+                paletteGrid.appendChild(swatch);
+            });
+        }
+        renderPalette();
+
+        /* --- DRAWING ENGINE LOGIC (With Panning Controls Lockout) --- */
         function attachDrawingListeners() {
             canvas.addEventListener('pointerdown', startDrawing);
             canvas.addEventListener('pointermove', drawStroke);
@@ -725,20 +823,25 @@
         function getCanvasCoordinates(e) {
             const rect = transformContainer.getBoundingClientRect();
             const rad = (-rotation * Math.PI) / 180;
-            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            
             const xRot = (e.clientX - cx) * Math.cos(rad) - (e.clientY - cy) * Math.sin(rad);
             const yRot = (e.clientX - cx) * Math.sin(rad) + (e.clientY - cy) * Math.cos(rad);
-            return { x: xRot / scale + canvas.width / 2, y: yRot / scale + canvas.height / 2 };
+            
+            return {
+                x: xRot / scale + canvas.width / 2,
+                y: yRot / scale + canvas.height / 2
+            };
         }
 
         function startDrawing(e) {
-            if (activePointers.length > 0) return;
-            e.stopPropagation(); // Stops interaction bubbling out to the workspace pan engine!
+            // Block line generation paths if workspace multi-touch controls are active
+            if (activePointers.length > 0) return; 
             
-            saveState(); // Lock state history
+            saveHistoryState(); // Snapshot canvas matrix before editing pixels
             drawing = true;
-            activeColor = provisionalColor; // Formalize color selection
-            pushToRecentColors(activeColor); // Put color onto the recent palette history
+            strokeHasPainted = false; 
 
             const coords = getCanvasCoordinates(e);
             ctx.beginPath();
@@ -748,9 +851,9 @@
 
         function drawStroke(e) {
             if (!drawing) return;
-            e.stopPropagation();
-            const coords = getCanvasCoordinates(e);
+            strokeHasPainted = true;
 
+            const coords = getCanvasCoordinates(e);
             ctx.lineWidth = currentBrushSize;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
@@ -763,34 +866,55 @@
             ctx.moveTo(coords.x, coords.y);
         }
 
-        function stopDrawing(e) {
+        function stopDrawing() {
             if (drawing) {
                 drawing = false;
                 ctx.beginPath();
+                // ONLY push into palette once the pixel stroke is physically committed
+                if (strokeHasPainted) {
+                    commitColorToPalette(activeColor);
+                }
             }
         }
 
-        /* GESTURE ENGINE (RUNS EXCLUSIVELY ON WORKSPACE BACKGROUND HOVER BLOCKS) */
+        /* --- STABILIZED VIEWPORT GESTURE ENGINE (Canvas locked while drawing) --- */
         let activePointers = [];
         let startPanX = 0, startPanY = 0;
-        let initialTouchDist = 0, initialTouchAngle = 0, initialScale = 1, initialRotation = 0;
+        let initialTouchDist = 0;
+        let initialTouchAngle = 0;
+        let initialScale = 1;
+        let initialRotation = 0;
         let isPanning = false;
+
+        function getDistance(p1, p2) {
+            return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+        }
+
+        function getAngle(p1, p2) {
+            return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
+        }
 
         workspace.addEventListener('pointerdown', (e) => {
             if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
-            if (e.target === canvas) return; // Completely ignores canvas pointerdowns here!
+            
+            // CRITICAL FIX: If pointer down is ON the canvas element directly, skip viewport pan manipulations completely
+            if (e.target === canvas) return;
 
             activePointers.push(e);
+            
             if (activePointers.length === 1) {
                 isPanning = true;
                 startPanX = e.clientX - panX;
                 startPanY = e.clientY - panY;
             } else if (activePointers.length === 2) {
                 isPanning = false;
-                initialTouchDist = Math.hypot(activePointers[1].clientX - activePointers[0].clientX, activePointers[1].clientY - activePointers[0].clientY);
-                initialTouchAngle = Math.atan2(activePointers[1].clientY - activePointers[0].clientY, activePointers[1].clientX - activePointers[0].clientX) * 180 / Math.PI;
+                initialTouchDist = getDistance(activePointers[0], activePointers[1]);
+                initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
                 initialScale = scale;
                 initialRotation = rotation;
+                
+                startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
+                startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
             }
         });
 
@@ -803,10 +927,12 @@
                 panY = e.clientY - startPanY;
                 applyTransforms();
             } else if (activePointers.length === 2) {
-                const currentDist = Math.hypot(activePointers[1].clientX - activePointers[0].clientX, activePointers[1].clientY - activePointers[0].clientY);
-                const currentAngle = Math.atan2(activePointers[1].clientY - activePointers[0].clientY, activePointers[1].clientX - activePointers[0].clientX) * 180 / Math.PI;
+                const currentDist = getDistance(activePointers[0], activePointers[1]);
+                const currentAngle = getAngle(activePointers[0], activePointers[1]);
 
-                scale = Math.max(0.1, Math.min(initialScale * (currentDist / initialTouchDist), 10));
+                let targetScale = initialScale * (currentDist / initialTouchDist);
+                scale = Math.max(0.1, Math.min(targetScale, 10));
+                
                 rotation = initialRotation + (currentAngle - initialTouchAngle);
                 applyTransforms();
             }
@@ -814,8 +940,13 @@
 
         function handlePointerUp(e) {
             activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
-            if (activePointers.length < 2) { initialTouchDist = 0; initialTouchAngle = 0; }
-            if (activePointers.length === 0) isPanning = false;
+            if (activePointers.length < 2) {
+                initialTouchDist = 0;
+                initialTouchAngle = 0;
+            }
+            if (activePointers.length === 0) {
+                isPanning = false;
+            }
         }
 
         workspace.addEventListener('pointerup', handlePointerUp);
@@ -824,7 +955,16 @@
         workspace.addEventListener('wheel', (e) => {
             if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
             e.preventDefault();
-            scale = Math.max(0.1, Math.min(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 10));
+            const zoomFactor = 1.1;
+            let targetScale = scale;
+            
+            if (e.deltaY < 0) {
+                targetScale *= zoomFactor;
+            } else {
+                targetScale /= zoomFactor;
+            }
+            
+            scale = Math.max(0.1, Math.min(targetScale, 10));
             applyTransforms();
         }, { passive: false });
 
