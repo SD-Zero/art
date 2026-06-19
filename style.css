@@ -116,7 +116,13 @@ html, body {
 }
 
 canvas {
-    background-color: #ffffff;
+    background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                      linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                      linear-gradient(-45deg, transparent 75%, #ccc 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    background-color: #f0f0f0; /* Default transparent checkerboard style backdrop pattern */
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
     border: 1px solid #2d2d2d;
     display: block;
@@ -395,12 +401,11 @@ canvas {
     pointer-events: none;
 }
 
-/* --- THICK RIGHT LAYER SIDEBAR UX --- */
 .layer-sidebar {
     position: absolute;
     top: 45px;
-    right: -280px; /* Slide-out state transition default */
-    width: 260px;
+    right: -310px;
+    width: 290px;
     height: calc(100vh - 45px);
     background-color: #141414;
     border-left: 1px solid #2a2a2a;
@@ -510,7 +515,6 @@ canvas {
     gap: 8px;
 }
 
-/* Layer Card Blocks */
 .layer-item {
     display: flex;
     align-items: center;
@@ -518,7 +522,7 @@ canvas {
     border: 1px solid #2d2d2d;
     padding: 8px;
     border-radius: 6px;
-    gap: 10px;
+    gap: 6px;
     cursor: pointer;
     position: relative;
 }
@@ -551,12 +555,36 @@ canvas {
     white-space: nowrap;
 }
 
+.layer-order-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.layer-order-btn {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    color: #aaa;
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.layer-order-btn:hover {
+    color: #fff;
+    background: #3a3a3a;
+}
+
 .layer-item-btn {
     background: none;
     border: none;
     color: #888;
     cursor: pointer;
     padding: 4px;
+    display: flex;
+    align-items: center;
 }
 
 .layer-item-btn:hover {
