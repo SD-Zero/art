@@ -26,25 +26,6 @@ const redoBtn = document.getElementById('redoBtn');
 const brushBtn = document.getElementById('brushBtn');
 const eraserBtn = document.getElementById('eraserBtn');
 
-// Dynamically inject Lasso and Layer/Selection Transform controls to UI if missing
-let lassoBtn = document.getElementById('lassoBtn');
-if (!lassoBtn) {
-    lassoBtn = document.createElement('button');
-    lassoBtn.id = 'lassoBtn';
-    lassoBtn.className = 'tool-btn';
-    lassoBtn.innerHTML = 'LASSO';
-    if (brushBtn && brushBtn.parentNode) brushBtn.parentNode.insertBefore(lassoBtn, eraserBtn.nextSibling);
-}
-
-let layerTransformBtn = document.getElementById('layerTransformBtn');
-if (!layerTransformBtn) {
-    layerTransformBtn = document.createElement('button');
-    layerTransformBtn.id = 'layerTransformBtn';
-    layerTransformBtn.className = 'tool-btn';
-    layerTransformBtn.innerHTML = 'TRANSFORM';
-    if (lassoBtn && lassoBtn.parentNode) lassoBtn.parentNode.insertBefore(layerTransformBtn, lassoBtn.nextSibling);
-}
-
 const newFileBtn = document.getElementById('newFileBtn');
 const savePngBtn = document.getElementById('savePngBtn');
 const saveJpegBtn = document.getElementById('saveJpegBtn');
@@ -81,7 +62,7 @@ let drawing = false;
 let currentBrushSize = 10;
 let currentOpacity = 1.0;
 let activeColor = '#000000';
-let currentTool = 'brush'; 
+let currentTool = 'brush'; // 'brush', 'eraser', 'lasso', 'transform'
 let strokeHasPainted = false; 
 
 let recentColors = Array(20).fill('#ffffff');
@@ -97,26 +78,51 @@ let layers = [];
 let activeLayerId = null;
 let layerIdCounter = 0;
 
-// Selection & Moving Matrices
-let lassoPath = [];
-let selectionMaskCanvas = document.createElement('canvas');
-let selectionMaskCtx = selectionMaskCanvas.getContext('2d');
-let selectedContentCanvas = document.createElement('canvas');
-let selectedContentCtx = selectedContentCanvas.getContext('2d');
-let hasSelection = false;
-let selectionOffset = { x: 0, y: 0 };
-let transformStartCoords = null;
-
 // Dedicated Offscreen Buffers for Realtime Operations
 let alphaScratchCanvas = document.createElement('canvas');
 let alphaScratchCtx = alphaScratchCanvas.getContext('2d');
 let alphaBackupCanvas = document.createElement('canvas');
 let alphaBackupCtx = alphaBackupCanvas.getContext('2d');
 
+// Lasso Selection Buffer Data Structures
+let lassoPoints = [];
+let selectionMaskCanvas = document.createElement('canvas');
+let selectionMaskCtx = selectionMaskCanvas.getContext('2d');
+let hasActiveSelection = false;
+
+// Active Transform Manipulation States
+let transformTargetData = null; // Stores sub-image or layer snapshot during manipulation
+let layerOffsetX = 0;
+let layerOffsetY = 0;
+let initialTransformScale = 1;
+
 // Color Picker State Engine
 let currentHue = 0;
 let currentSat = 0;
 let currentLight = 0;
+
+// Dynamic Creation of Selection/Transform toolbar options
+const controlsContainer = document.querySelector('.left-controls');
+
+let lassoBtn = document.getElementById('lassoBtn');
+if (!lassoBtn) {
+    lassoBtn = document.createElement('button');
+    lassoBtn.id = 'lassoBtn';
+    lassoBtn.className = 'tool-btn';
+    lassoBtn.innerHTML = 'LASSO';
+    lassoBtn.style.fontSize = '10px';
+    controlsContainer.insertBefore(lassoBtn, brushBtn);
+}
+
+let transformBtn = document.getElementById('transformBtn');
+if (!transformBtn) {
+    transformBtn = document.createElement('button');
+    transformBtn.id = 'transformBtn';
+    transformBtn.className = 'tool-btn';
+    transformBtn.innerHTML = 'MOVE';
+    transformBtn.style.fontSize = '10px';
+    controlsContainer.insertBefore(transformBtn, brushBtn);
+}
 
 // iOS Double-Tap System Zoom Prevention Engine
 let lastTouchEnd = 0;
@@ -144,7 +150,7 @@ if (!sizePreviewContainer) {
     sizePreviewContainer.style.borderRadius = '8px';
     sizePreviewContainer.style.pointerEvents = 'none';
     sizePreviewContainer.style.zIndex = '100';
-    document.querySelector('.left-controls').appendChild(sizePreviewContainer);
+    controlsContainer.appendChild(sizePreviewContainer);
 }
 
 function updateBrushSizePreview() {
@@ -225,8 +231,8 @@ hiddenLayerAssetPicker.addEventListener('change', (e) => {
             updateGlobalLayerControlsUI();
             compositeCanvasStack();
 
-            // Set current tool to transform on image insertion automatically
-            setTool('transform');
+            // Auto-trigger Move/Transform mode immediately upon asset ingestion
+            setToolMode('transform');
         }
         img.src = event.target.result;
     }
@@ -271,7 +277,6 @@ function setupCustomSlider(container, fill, handle, bubble, min, max, initialVal
         if(container === sizeSlider) {
             sizePreviewContainer.style.display = 'flex';
         }
-        
         updateSliderFromCoords(e.clientY);
     });
 
@@ -304,25 +309,68 @@ setupCustomSlider(opacSlider, opacTrackFill, opacHandle, opacBubble, 0, 100, 100
     currentOpacity = val / 100;
 });
 
-// Tool Switching Logic
-function setTool(toolName) {
-    currentTool = toolName;
-    brushBtn.classList.toggle('active', toolName === 'brush');
-    eraserBtn.classList.toggle('active', toolName === 'eraser');
-    lassoBtn.classList.toggle('active', toolName === 'lasso');
-    layerTransformBtn.classList.toggle('active', toolName === 'transform');
+// Master Tool Switching Logic State Engine
+function setToolMode(mode) {
+    currentTool = mode;
+    brushBtn.classList.toggle('active', mode === 'brush');
+    eraserBtn.classList.toggle('active', mode === 'eraser');
+    lassoBtn.classList.toggle('active', mode === 'lasso');
+    transformBtn.classList.toggle('active', mode === 'transform');
+    
+    // Clear operational selections when flipping back away from Selection configurations
+    if (mode !== 'lasso' && mode !== 'transform' && mode !== 'brush' && mode !== 'eraser') {
+        hasActiveSelection = false;
+        lassoPoints = [];
+    }
+    
+    if (mode === 'transform') {
+        setupTransformOperationData();
+    } else {
+        transformTargetData = null;
+    }
     updateBrushSizePreview();
 }
 
-brushBtn.addEventListener('click', () => setTool('brush'));
-eraserBtn.addEventListener('click', () => setTool('eraser'));
-lassoBtn.addEventListener('click', () => setTool('lasso'));
-layerTransformBtn.addEventListener('click', () => {
-    if (currentTool !== 'transform') {
-        initializeTransformState();
+brushBtn.addEventListener('click', () => setToolMode('brush'));
+eraserBtn.addEventListener('click', () => setToolMode('eraser'));
+lassoBtn.addEventListener('click', () => setToolMode('lasso'));
+transformBtn.addEventListener('click', () => setToolMode('transform'));
+
+// Workspace / Layer Isolation Transform Engine Setup
+function setupTransformOperationData() {
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
+
+    transformTargetData = document.createElement('canvas');
+    transformTargetData.width = canvas.width;
+    transformTargetData.height = canvas.height;
+    const tCtx = transformTargetData.getContext('2d');
+
+    if (hasActiveSelection) {
+        // Cut exclusively inside lasso coordinates bounds
+        tCtx.save();
+        tCtx.drawImage(selectionMaskCanvas, 0, 0);
+        tCtx.globalCompositeOperation = 'source-in';
+        tCtx.drawImage(activeLayer.canvas, 0, 0);
+        tCtx.restore();
+
+        // Strip localized data spaces out of baseline interactive canvas element immediately
+        saveHistoryState();
+        activeLayer.ctx.save();
+        activeLayer.ctx.drawImage(selectionMaskCanvas, 0, 0);
+        activeLayer.ctx.globalCompositeOperation = 'destination-out';
+        activeLayer.ctx.drawImage(activeLayer.canvas, 0, 0);
+        activeLayer.ctx.restore();
+    } else {
+        // Manipulate complete sheet surface area layers globally
+        saveHistoryState();
+        tCtx.drawImage(activeLayer.canvas, 0, 0);
+        activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-    setTool('transform');
-});
+    layerOffsetX = 0;
+    layerOffsetY = 0;
+    initialTransformScale = 1;
+}
 
 // Sidebar & Dropdown Trigger Logic
 menuBtn.addEventListener('pointerdown', (e) => {
@@ -349,10 +397,17 @@ closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
+// Global Tap Listener (Persistent Sidebar Exception Enabled)
 window.addEventListener('pointerdown', (e) => {
-    if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) return; 
-    if (!menuDropdown.contains(e.target) && e.target !== menuBtn) menuDropdown.classList.remove('show');
-    if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) colorPanel.classList.remove('show');
+    if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) {
+        return; 
+    }
+    if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
+        menuDropdown.classList.remove('show');
+    }
+    if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
+        colorPanel.classList.remove('show');
+    }
 });
 
 // Canvas Preview Settings
@@ -412,6 +467,7 @@ function createLayerElement(name = `Layer ${layers.length + 1}`) {
     const layerCanvas = document.createElement('canvas');
     layerCanvas.width = canvas.width;
     layerCanvas.height = canvas.height;
+    
     const layerCtx = layerCanvas.getContext('2d');
 
     const layerObj = {
@@ -440,22 +496,26 @@ function updateLayersUI() {
         const item = document.createElement('div');
         item.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''} ${layer.clipping ? 'clipping' : ''}`;
         
-        // Single tap selects layer, double-tap allows in-line rename action pathing
+        // Double Tap Interaction Listener for Layer Name Alterations
+        let lastTap = 0;
         item.addEventListener('click', (e) => {
             if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
-            activeLayerId = layer.id;
-            updateLayersUI();
-            updateGlobalLayerControlsUI();
-        });
-
-        item.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            const newName = prompt(`Rename Layer:`, layer.name);
-            if (newName && newName.trim() !== "") {
-                saveHistoryState();
-                layer.name = newName.trim();
+            
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                // Double tap detected
+                const newName = prompt(`Enter new title for ${layer.name}:`, layer.name);
+                if (newName && newName.trim() !== "") {
+                    layer.name = newName.trim();
+                    updateLayersUI();
+                }
+            } else {
+                // Standard Selection Action
+                activeLayerId = layer.id;
                 updateLayersUI();
+                updateGlobalLayerControlsUI();
             }
+            lastTap = now;
         });
 
         const thumb = document.createElement('img');
@@ -472,6 +532,7 @@ function updateLayersUI() {
         const upBtn = document.createElement('button');
         upBtn.className = 'layer-order-btn';
         upBtn.innerHTML = '&#9650;'; 
+        upBtn.title = 'Move Layer Up';
         upBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             moveLayerUp(index);
@@ -480,6 +541,7 @@ function updateLayersUI() {
         const downBtn = document.createElement('button');
         downBtn.className = 'layer-order-btn';
         downBtn.innerHTML = '&#9660;'; 
+        downBtn.title = 'Move Layer Down';
         downBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             moveLayerDown(index);
@@ -606,26 +668,30 @@ function compositeCanvasStack() {
         } else {
             ctx.drawImage(layer.canvas, 0, 0);
         }
+
+        // Live overlay renderer for transformations actively in-flight
+        if (layer.id === activeLayerId && transformTargetData && currentTool === 'transform') {
+            ctx.save();
+            ctx.translate(canvas.width / 2 + layerOffsetX, canvas.height / 2 + layerOffsetY);
+            ctx.scale(initialTransformScale, initialTransformScale);
+            ctx.drawImage(transformTargetData, -canvas.width / 2, -canvas.height / 2);
+            ctx.restore();
+        }
         ctx.restore();
     }
 
-    // Overlay active lasso selection outline indicators if present
-    if (currentTool === 'lasso' && lassoPath.length > 1) {
+    // Live Render Path visualization for Lasso points
+    if (currentTool === 'lasso' && lassoPoints.length > 1) {
         ctx.save();
-        ctx.strokeStyle = '#0084ff';
+        ctx.strokeStyle = '#007aff';
         ctx.lineWidth = 2 / scale;
         ctx.setLineDash([4 / scale, 4 / scale]);
         ctx.beginPath();
-        ctx.moveTo(lassoPath[0].x, lassoPath[0].y);
-        for(let p of lassoPath) ctx.lineTo(p.x, p.y);
+        ctx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        for(let i=1; i<lassoPoints.length; i++) {
+            ctx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
+        }
         ctx.stroke();
-        ctx.restore();
-    } else if (hasSelection) {
-        ctx.save();
-        ctx.strokeStyle = '#0084ff';
-        ctx.lineWidth = 1.5 / scale;
-        ctx.setLineDash([5 / scale, 5 / scale]);
-        ctx.strokeRect(selectionOffset.x, selectionOffset.y, selectedContentCanvas.width, selectedContentCanvas.height);
         ctx.restore();
     }
 }
@@ -746,6 +812,45 @@ saveJpegBtn.addEventListener('click', () => {
     menuDropdown.classList.remove('show');
 });
 
+saveSvgBtn.addEventListener('click', () => {
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+        <image width="${canvas.width}" height="${canvas.height}" href="${canvas.toDataURL('image/png')}"/>
+    </svg>`;
+    
+    const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+    const link = document.createElement('a');
+    link.download = 'artwork.svg';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    menuDropdown.classList.remove('show');
+});
+
+saveSpeedpaintBtn.addEventListener('click', () => {
+    menuDropdown.classList.remove('show');
+    if (speedpaintFrames.length === 0) {
+        alert("Draw something first to generate recording data!");
+        return;
+    }
+
+    const blobs = [];
+    for (let i = 0; i < speedpaintFrames.length; i++) {
+        const byteString = atob(speedpaintFrames[i].split(',')[1]);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let j = 0; j < byteString.length; j++) {
+            ia[j] = byteString.charCodeAt(j);
+        }
+        blobs.push(new Blob([ab], {type: 'image/jpeg'}));
+    }
+
+    const videoBlob = new Blob(blobs, { type: 'video/mp4' });
+    const url = URL.createObjectURL(videoBlob);
+    const link = document.createElement('a');
+    link.download = 'speedpaint.mp4';
+    link.href = url;
+    link.click();
+});
+
 function startSpeedpaintRecording() {
     if (recordingInterval) clearInterval(recordingInterval);
     speedpaintFrames = [];
@@ -766,7 +871,6 @@ function initCanvas(width, height) {
     alphaScratchCanvas.height = height;
     alphaBackupCanvas.width = width;
     alphaBackupCanvas.height = height;
-
     selectionMaskCanvas.width = width;
     selectionMaskCanvas.height = height;
 
@@ -778,9 +882,9 @@ function initCanvas(width, height) {
     
     layers = [];
     layerIdCounter = 0;
-    hasSelection = false;
     
     createLayerElement("Layer 1");
+    
     centerCanvas();
     attachDrawingListeners();
     updateBrushSizePreview();
@@ -789,6 +893,7 @@ function initCanvas(width, height) {
     redoStack = [];
     updateHistoryButtons();
     updateGlobalLayerControlsUI();
+
     startSpeedpaintRecording();
 }
 
@@ -796,6 +901,24 @@ confirmBtn.addEventListener('click', () => {
     const w = parseInt(canvasWidthInput.value) || 800;
     const h = parseInt(canvasHeightInput.value) || 600;
     initCanvas(w, h);
+});
+
+fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+            initCanvas(img.width, img.height);
+            const targetLayer = layers.find(l => l.id === activeLayerId);
+            targetLayer.ctx.drawImage(img, 0, 0);
+            compositeCanvasStack();
+        }
+        img.src = event.target.result;
+    }
+    reader.readAsDataURL(file);
 });
 
 // Advanced Color Wheel UI Engine: Hue Ring + Saturation/Lightness Square
@@ -808,8 +931,8 @@ function drawColorWheel() {
     const innerRadius = outerRadius - 20;
     const squareSize = Math.floor(innerRadius * Math.sqrt(2)) - 4;
 
-    // Fixed: Color inside wheel matches the canvas background panel styling (#222) instead of bright white
-    wheelCtx.fillStyle = '#222222';
+    // Fill background space with structural gray to seamlessly blend panel layout profiles
+    wheelCtx.fillStyle = '#2a2a2a';
     wheelCtx.fillRect(0, 0, width, height);
 
     // 1. Draw Hue Ring
@@ -858,6 +981,11 @@ function drawCursorIndicator(x, y) {
     wheelCtx.arc(x, y, 5, 0, Math.PI * 2);
     wheelCtx.strokeStyle = '#ffffff';
     wheelCtx.lineWidth = 2;
+    wheelCtx.stroke();
+    wheelCtx.beginPath();
+    wheelCtx.arc(x, y, 6, 0, Math.PI * 2);
+    wheelCtx.strokeStyle = '#000000';
+    wheelCtx.lineWidth = 1;
     wheelCtx.stroke();
     wheelCtx.restore();
 }
@@ -951,13 +1079,39 @@ hexInput.addEventListener('change', (e) => {
     }
 });
 
-// Core Drawing & Transformation Routing Listeners
+function commitColorToPalette(hex) {
+    if (recentColors[0] !== hex) {
+        recentColors.unshift(hex);
+        recentColors.pop();
+        renderPalette();
+    }
+}
+
+function renderPalette() {
+    paletteGrid.innerHTML = '';
+    recentColors.forEach(color => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch';
+        swatch.style.backgroundColor = color;
+        swatch.addEventListener('click', () => {
+            activeColor = color;
+            hexInput.value = color;
+            updateHslFromHex(color);
+            updateBrushSizePreview();
+        });
+        paletteGrid.appendChild(swatch);
+    });
+}
+renderPalette();
+
+// Core Drawing Logic
 function attachDrawingListeners() {
     canvas.addEventListener('pointerdown', startDrawing);
     canvas.addEventListener('pointermove', drawStroke);
     window.addEventListener('pointerup', stopDrawing);
 }
 
+// Coordinate Translator
 function getCanvasCoordinates(e) {
     const rect = transformContainer.getBoundingClientRect();
     const rad = (-rotation * Math.PI) / 180;
@@ -974,50 +1128,7 @@ function getCanvasCoordinates(e) {
 }
 
 let lastCoords = null;
-
-// Isolate Lasso Mask Bounds
-function initializeTransformState() {
-    const activeLayer = layers.find(l => l.id === activeLayerId);
-    if (!activeLayer || !hasSelection) return;
-
-    // 1. Calculate boundaries of drawn lasso loop
-    let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0;
-    for (let p of lassoPath) {
-        if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
-    }
-
-    minX = Math.floor(Math.max(0, minX)); maxX = Math.ceil(Math.min(canvas.width, maxX));
-    minY = Math.floor(Math.max(0, minY)); maxY = Math.ceil(Math.min(canvas.height, maxY));
-
-    const w = maxX - minX; const h = maxY - minY;
-    if (w <= 0 || h <= 0) return;
-
-    // 2. Prep offscreen marquee space
-    selectedContentCanvas.width = w; selectedContentCanvas.height = h;
-    selectedContentCtx.clearRect(0, 0, w, h);
-
-    // Clip artwork to standalone element
-    selectedContentCtx.save();
-    selectedContentCtx.translate(-minX, -minY);
-    selectedContentCtx.beginPath();
-    selectedContentCtx.moveTo(lassoPath[0].x, lassoPath[0].y);
-    for (let p of lassoPath) selectedContentCtx.lineTo(p.x, p.y);
-    selectedContentCtx.clip();
-    selectedContentCtx.drawImage(activeLayer.canvas, 0, 0);
-    selectedContentCtx.restore();
-
-    // 3. Clear clipped portion out of active base layer completely
-    activeLayer.ctx.save();
-    activeLayer.ctx.beginPath();
-    activeLayer.ctx.moveTo(lassoPath[0].x, lassoPath[0].y);
-    for (let p of lassoPath) activeLayer.ctx.lineTo(p.x, p.y);
-    activeLayer.ctx.clip();
-    activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-    activeLayer.ctx.restore();
-
-    selectionOffset = { x: minX, y: minY };
-}
+let transformStartCoords = null;
 
 function startDrawing(e) {
     if (activePointers.length >= 2) return; 
@@ -1027,24 +1138,30 @@ function startDrawing(e) {
 
     const coords = getCanvasCoordinates(e);
     lastCoords = coords;
+
+    if (currentTool === 'lasso') {
+        lassoPoints = [coords];
+        drawing = true;
+        return;
+    }
+
+    if (currentTool === 'transform') {
+        drawing = true;
+        transformStartCoords = { x: e.clientX, y: e.clientY };
+        return;
+    }
+
+    saveHistoryState(); 
     drawing = true;
     strokeHasPainted = false; 
 
-    if (currentTool === 'lasso') {
-        hasSelection = false;
-        lassoPath = [coords];
-    } else if (currentTool === 'transform') {
-        saveHistoryState();
-        transformStartCoords = coords;
-    } else {
-        saveHistoryState(); 
-        if (activeLayer.alphaLock) {
-            // Snapshot initial baseline state directly
-            alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
-            alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
-            alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+    if (activeLayer.alphaLock) {
+        alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
+        alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
+        alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
+    
+    drawStroke(e);
 }
 
 function drawStroke(e) {
@@ -1054,61 +1171,63 @@ function drawStroke(e) {
     if (!activeLayer) return;
 
     const coords = getCanvasCoordinates(e);
-    strokeHasPainted = true;
-
+    
     if (currentTool === 'lasso') {
-        lassoPath.push(coords);
-    } else if (currentTool === 'transform') {
-        const dx = coords.x - transformStartCoords.x;
-        const dy = coords.y - transformStartCoords.y;
-        
-        if (hasSelection) {
-            // Moving lasso marquee choice around exclusively
-            selectionOffset.x += dx;
-            selectionOffset.y += dy;
-        } else {
-            // Translate the entire layer's graphical content natively
-            alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-            alphaScratchCtx.drawImage(activeLayer.canvas, dx, dy);
-            activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-            activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
-        }
-        transformStartCoords = coords;
-    } else if (activeLayer.alphaLock) {
-        // FIXED Alpha Lock Engine Path
-        alphaScratchCtx.save();
-        alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-        alphaScratchCtx.drawImage(alphaBackupCanvas, 0, 0);
-        
-        alphaScratchCtx.lineWidth = currentBrushSize;
-        alphaScratchCtx.lineCap = 'round';
-        alphaScratchCtx.lineJoin = 'round';
-        alphaScratchCtx.globalAlpha = currentOpacity;
-        
+        lassoPoints.push(coords);
+        compositeCanvasStack();
+        return;
+    }
+
+    if (currentTool === 'transform') {
+        layerOffsetX += (e.clientX - transformStartCoords.x) / scale;
+        layerOffsetY += (e.clientY - transformStartCoords.y) / scale;
+        transformStartCoords = { x: e.clientX, y: e.clientY };
+        compositeCanvasStack();
+        return;
+    }
+
+    strokeHasPainted = true;
+    
+    if (activeLayer.alphaLock) {
         if (currentTool === 'eraser') {
-            // Wipe pixels out from our live isolated layout stream seamlessly
-            alphaScratchCtx.globalCompositeOperation = 'destination-out';
-            alphaScratchCtx.strokeStyle = 'rgba(0,0,0,1.0)';
+            // FIXED Path: Clear color directly inside the active layout copying profile channel boundaries
+            activeLayer.ctx.save();
+            activeLayer.ctx.lineWidth = currentBrushSize;
+            activeLayer.ctx.lineCap = 'round';
+            activeLayer.ctx.lineJoin = 'round';
+            activeLayer.ctx.globalAlpha = currentOpacity;
+            activeLayer.ctx.globalCompositeOperation = 'destination-out';
+            activeLayer.ctx.strokeStyle = 'rgba(0,0,0,1.0)';
+            activeLayer.ctx.beginPath();
+            activeLayer.ctx.moveTo(lastCoords.x, lastCoords.y);
+            activeLayer.ctx.lineTo(coords.x, coords.y);
+            activeLayer.ctx.stroke();
+            activeLayer.ctx.restore();
         } else {
+            // Brush Path: Render additions strictly clipped into alpha parameters
+            alphaScratchCtx.save();
+            alphaScratchCtx.lineWidth = currentBrushSize;
+            alphaScratchCtx.lineCap = 'round';
+            alphaScratchCtx.lineJoin = 'round';
+            alphaScratchCtx.globalAlpha = currentOpacity;
             alphaScratchCtx.globalCompositeOperation = 'source-over';
             alphaScratchCtx.strokeStyle = activeColor;
-        }
-        
-        alphaScratchCtx.beginPath();
-        alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
-        alphaScratchCtx.lineTo(coords.x, coords.y);
-        alphaScratchCtx.stroke();
-        alphaScratchCtx.restore();
+            alphaScratchCtx.beginPath();
+            alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
+            alphaScratchCtx.lineTo(coords.x, coords.y);
+            alphaScratchCtx.stroke();
+            alphaScratchCtx.restore();
 
-        // Enforce structural safety boundary calculations by running a destination-in operation against backup profile
-        activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        activeLayer.ctx.save();
-        activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
-        activeLayer.ctx.globalCompositeOperation = 'destination-in';
-        activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
-        activeLayer.ctx.restore();
+            activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
+            activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
+            activeLayer.ctx.save();
+            activeLayer.ctx.globalCompositeOperation = 'destination-over';
+            activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
+            activeLayer.ctx.globalCompositeOperation = 'destination-in';
+            activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
+            activeLayer.ctx.restore();
+        }
     } else {
-        // Standard Brush & Eraser Routines
         activeLayer.ctx.save();
         activeLayer.ctx.lineWidth = currentBrushSize;
         activeLayer.ctx.lineCap = 'round';
@@ -1135,27 +1254,52 @@ function drawStroke(e) {
 }
 
 function stopDrawing() {
-    if (drawing) {
-        drawing = false;
-        lastCoords = null;
-        
-        const activeLayer = layers.find(l => l.id === activeLayerId);
-        
-        if (currentTool === 'lasso' && lassoPath.length > 2) {
-            hasSelection = true;
-        } else if (currentTool === 'transform' && hasSelection && activeLayer) {
-            // Bake the active selection back down onto your working canvas space 
-            activeLayer.ctx.drawImage(selectedContentCanvas, selectionOffset.x, selectionOffset.y);
-            hasSelection = false;
-            lassoPath = [];
+    if (!drawing) return;
+    drawing = false;
+    lastCoords = null;
+
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+
+    if (currentTool === 'lasso' && lassoPoints.length > 2) {
+        // Enforce boundary parameters closing selection vector masks
+        selectionMaskCtx.clearRect(0, 0, canvas.width, canvas.height);
+        selectionMaskCtx.fillStyle = 'rgba(0,0,0,1.0)';
+        selectionMaskCtx.beginPath();
+        selectionMaskCtx.moveTo(lassoPoints[0].x, lassoPoints[0].y);
+        for(let i=1; i<lassoPoints.length; i++) {
+            selectionMaskCtx.lineTo(lassoPoints[i].x, lassoPoints[i].y);
         }
-        
-        updateLayersUI();
+        selectionMaskCtx.closePath();
+        selectionMaskCtx.fill();
+        hasActiveSelection = true;
         compositeCanvasStack();
+        return;
     }
+
+    if (currentTool === 'transform' && transformTargetData && activeLayer) {
+        // Render translated updates back down to layer surface textures cleanly
+        activeLayer.ctx.save();
+        activeLayer.ctx.translate(canvas.width / 2 + layerOffsetX, canvas.height / 2 + layerOffsetY);
+        activeLayer.ctx.scale(initialTransformScale, initialTransformScale);
+        activeLayer.ctx.drawImage(transformTargetData, -canvas.width / 2, -canvas.height / 2);
+        activeLayer.ctx.restore();
+        
+        transformTargetData = null;
+        hasActiveSelection = false;
+        lassoPoints = [];
+        compositeCanvasStack();
+        return;
+    }
+    
+    if (strokeHasPainted && currentTool === 'brush') {
+        commitColorToPalette(activeColor);
+    }
+    
+    updateLayersUI();
+    speedpaintFrames.push(canvas.toDataURL('image/jpeg', 0.6));
 }
 
-// Global Workspace Canvas Navigation Gestures
+// Global Workspace Gestures (Pinch-to-Zoom handling when Tool != Transform)
 let activePointers = [];
 let startPanX = 0, startPanY = 0;
 let initialTouchDist = 0;
@@ -1164,11 +1308,17 @@ let initialScale = 1;
 let initialRotation = 0;
 let isPanning = false;
 
-function getDistance(p1, p2) { return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY); }
-function getAngle(p1, p2) { return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI; }
+function getDistance(p1, p2) {
+    return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+}
+
+function getAngle(p1, p2) {
+    return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
+}
 
 const handlePointerDownGlobal = (e) => {
     if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar')) return;
+
     if (activePointers.some(p => p.pointerId === e.pointerId)) return;
     activePointers.push(e);
     
@@ -1178,10 +1328,11 @@ const handlePointerDownGlobal = (e) => {
         startPanY = e.clientY - panY;
     } else if (activePointers.length === 2) {
         if (drawing) stopDrawing(); 
+        
         isPanning = false;
         initialTouchDist = getDistance(activePointers[0], activePointers[1]);
         initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
-        initialScale = scale;
+        initialScale = currentTool === 'transform' ? initialTransformScale : scale;
         initialRotation = rotation;
         
         startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
@@ -1198,35 +1349,21 @@ const handlePointerMoveGlobal = (e) => {
         panY = e.clientY - startPanY;
         applyTransforms();
     } else if (activePointers.length === 2) {
-        // Multi-touch gestures change global workspace preview viewport configurations safely
         const currentDist = getDistance(activePointers[0], activePointers[1]);
         const currentAngle = getAngle(activePointers[0], activePointers[1]);
 
-        let targetScale = initialScale * (currentDist / initialTouchDist);
-        scale = Math.max(0.1, Math.min(targetScale, 10));
-        
-        // Treat transformation logic differently if user is running specific tool workflows
         if (currentTool === 'transform') {
-            const activeLayer = layers.find(l => l.id === activeLayerId);
-            if (activeLayer) {
-                // Resize layer or lasso element based on pinching operations
-                saveHistoryState();
-                let scaleRatio = scale / initialScale;
-                
-                alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-                alphaScratchCtx.save();
-                alphaScratchCtx.scale(scaleRatio, scaleRatio);
-                alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
-                alphaScratchCtx.restore();
-                
-                activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-                activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
-                compositeCanvasStack();
-            }
+            // Interpret dynamic touch adjustments to scale selected items
+            initialTransformScale = initialScale * (currentDist / initialTouchDist);
+            compositeCanvasStack();
         } else {
+            let targetScale = initialScale * (currentDist / initialTouchDist);
+            scale = Math.max(0.1, Math.min(targetScale, 10));
             rotation = initialRotation + (currentAngle - initialTouchAngle);
+
             const currentMidX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
             const currentMidY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
+            
             panX = currentMidX - startPanX;
             panY = currentMidY - startPanY;
             applyTransforms();
@@ -1254,9 +1391,19 @@ window.addEventListener('pointercancel', handlePointerUp);
 workspace.addEventListener('wheel', (e) => {
     if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar')) return;
     e.preventDefault();
-    const zoomFactor = 1.1;
-    let targetScale = scale;
-    if (e.deltaY < 0) targetScale *= zoomFactor; else targetScale /= zoomFactor;
-    scale = Math.max(0.1, Math.min(targetScale, 10));
-    applyTransforms();
+    
+    if (currentTool === 'transform') {
+        initialTransformScale *= e.deltaY < 0 ? 1.1 : 0.9;
+        compositeCanvasStack();
+    } else {
+        const zoomFactor = 1.1;
+        let targetScale = scale;
+        if (e.deltaY < 0) {
+            targetScale *= zoomFactor;
+        } else {
+            targetScale /= zoomFactor;
+        }
+        scale = Math.max(0.1, Math.min(targetScale, 10));
+        applyTransforms();
+    }
 }, { passive: false });
