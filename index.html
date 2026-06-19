@@ -75,6 +75,10 @@
             <button class="icon-btn" id="redoBtn" title="Redo" disabled>
                 <svg viewBox="0 0 24 24"><path d="M11.5 8c2.65 0 5.05.99 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z"/></svg>
             </button>
+
+            <button class="icon-btn" id="layerPanelBtn" title="Layers" style="margin-left: auto; margin-right: 0;">
+                <svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+            </button>
         </div>
 
         <div id="colorPanel" class="color-panel">
@@ -109,6 +113,35 @@
                     <div id="opacHandle" class="slider-handle"></div>
                 </div>
             </div>
+        </div>
+
+        <div id="layerSidebar" class="layer-sidebar">
+            <div class="sidebar-header">
+                <h3>Layers</h3>
+                <button id="addLayerBtn" class="sidebar-add-btn" title="Add Layer">+</button>
+            </div>
+            
+            <div class="layer-global-settings">
+                <div class="setting-row">
+                    <button id="clippingBtn" class="toggle-action-btn">Clipping</button>
+                    <button id="alphaLockBtn" class="toggle-action-btn">Alpha Lock</button>
+                </div>
+                <div class="setting-row">
+                    <label for="blendModeSelect">Mode:</label>
+                    <select id="blendModeSelect" class="sidebar-select">
+                        <option value="source-over">Normal</option>
+                        <option value="multiply">Multiply</option>
+                        <option value="screen">Screen</option>
+                        <option value="overlay">Overlay</option>
+                    </select>
+                </div>
+                <div class="setting-row layer-opacity-row">
+                    <label>Layer Opac:</label>
+                    <input type="range" id="layerOpacityRange" min="0" max="100" value="100">
+                </div>
+            </div>
+
+            <div id="layersList" class="layers-list-container"></div>
         </div>
 
         <div id="transformContainer" class="transform-container">
