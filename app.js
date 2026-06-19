@@ -755,6 +755,7 @@ function attachDrawingListeners() {
     window.addEventListener('pointerup', stopDrawing);
 }
 
+// Coordinate Translator
 function getCanvasCoordinates(e) {
     const rect = transformContainer.getBoundingClientRect();
     const rad = (-rotation * Math.PI) / 180;
@@ -786,11 +787,11 @@ function startDrawing(e) {
     lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // 1. Keep a backup copy of ONLY the alpha mask opacity shape boundaries
+        // 1. Snapshot the alpha mask boundary properties explicitly
         alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
 
-        // 2. Load the current full artwork onto the scratch drawing buffer
+        // 2. Clear out scratch pad buffer and clone the full artwork layout
         alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
     }
@@ -807,16 +808,26 @@ function drawStroke(e) {
     strokeHasPainted = true;
     const coords = getCanvasCoordinates(e);
     
-    // FIXED Alpha Lock Draw Logic
     if (activeLayer.alphaLock) {
-        // 1. Draw live paths directly over the baseline copy in our scratch canvas
         alphaScratchCtx.save();
         alphaScratchCtx.lineWidth = currentBrushSize;
         alphaScratchCtx.lineCap = 'round';
         alphaScratchCtx.lineJoin = 'round';
         alphaScratchCtx.globalAlpha = currentOpacity;
-        alphaScratchCtx.strokeStyle = activeColor;
-        alphaScratchCtx.globalCompositeOperation = 'source-over';
+        
+        // FIXED Alpha Lock Eraser Mode Implementation
+        if (currentTool === 'eraser') {
+            // Use the baseline backup canvas layout pattern as a paint source texture
+            alphaScratchCtx.globalCompositeOperation = 'source-over';
+            
+            // Generate a pattern mask linked directly to original layer pixels
+            const pattern = alphaScratchCtx.createPattern(alphaBackupCanvas, 'no-repeat');
+            alphaScratchCtx.strokeStyle = pattern;
+        } else {
+            // Standard brush stroke path logic
+            alphaScratchCtx.globalCompositeOperation = 'source-over';
+            alphaScratchCtx.strokeStyle = activeColor;
+        }
         
         alphaScratchCtx.beginPath();
         alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
@@ -824,17 +835,17 @@ function drawStroke(e) {
         alphaScratchCtx.stroke();
         alphaScratchCtx.restore();
 
-        // 2. Wipe the layer canvas and push down the updated full composite scratch art
+        // Push combined scratch results back to primary layer canvas
         activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
         activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
 
-        // 3. Re-crop the entire layer using destination-in matched against the starting alpha bounds
+        // Clip anything that went over the lines using the alpha lock bounding shape copy
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'destination-in';
         activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
         activeLayer.ctx.restore();
     } else {
-        // Standard Brush Drawing Routine
+        // Normal Drawing Flow
         activeLayer.ctx.save();
         activeLayer.ctx.lineWidth = currentBrushSize;
         activeLayer.ctx.lineCap = 'round';
