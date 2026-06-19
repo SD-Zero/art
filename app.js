@@ -42,6 +42,16 @@ const opacTrackFill = document.getElementById('opacTrackFill');
 const opacHandle = document.getElementById('opacHandle');
 const opacBubble = document.getElementById('opacBubble');
 
+// New Layers Elements
+const layerPanelBtn = document.getElementById('layerPanelBtn');
+const layerSidebar = document.getElementById('layerSidebar');
+const addLayerBtn = document.getElementById('addLayerBtn');
+const layersList = document.getElementById('layersList');
+const clippingBtn = document.getElementById('clippingBtn');
+const alphaLockBtn = document.getElementById('alphaLockBtn');
+const blendModeSelect = document.getElementById('blendModeSelect');
+const layerOpacityRange = document.getElementById('layerOpacityRange');
+
 // State Tracking
 let scale = 1;
 let panX = 0;
@@ -62,6 +72,11 @@ const MAX_HISTORY = 20;
 
 let speedpaintFrames = [];
 let recordingInterval = null;
+
+// Multi-Layer Storage Architecture
+let layers = [];
+let activeLayerId = null;
+let layerIdCounter = 0;
 
 // iOS Double-Tap System Zoom Prevention Engine
 let lastTouchEnd = 0;
@@ -141,25 +156,33 @@ eraserBtn.addEventListener('click', () => {
     brushBtn.classList.remove('active');
 });
 
-// Dropdowns and Panels Triggering Logic
+// Sidebar & Dropdown Trigger Logic
 menuBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     colorPanel.classList.remove('show');
+    layerSidebar.classList.remove('show');
     menuDropdown.classList.toggle('show');
 });
 
 colorBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     menuDropdown.classList.remove('show');
+    layerSidebar.classList.remove('show');
     colorPanel.classList.toggle('show');
     if (colorPanel.classList.contains('show')) drawColorWheel();
+});
+
+layerPanelBtn.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    menuDropdown.classList.remove('show');
+    colorPanel.classList.remove('show');
+    layerSidebar.classList.toggle('show');
 });
 
 closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
-// Global tap listener that explicitly dismisses drop panels when clicking elsewhere
 window.addEventListener('pointerdown', (e) => {
     if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
         menuDropdown.classList.remove('show');
@@ -167,9 +190,12 @@ window.addEventListener('pointerdown', (e) => {
     if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
         colorPanel.classList.remove('show');
     }
+    if (!layerSidebar.contains(e.target) && !layerPanelBtn.contains(e.target) && !e.target.closest('.layer-item-btn')) {
+        layerSidebar.classList.remove('show');
+    }
 });
 
-// Canvas Size Preview
+// Canvas Preview Settings
 function updatePreview() {
     const w = parseInt(canvasWidthInput.value) || 1;
     const h = parseInt(canvasHeightInput.value) || 1;
@@ -193,15 +219,198 @@ function applyTransforms() {
 
 function centerCanvas() {
     panX = (window.innerWidth - canvas.width) / 2;
+    if (window.innerWidth > 900) panX -= 100; // Account layout bias toward thick panel structures
     panY = (window.innerHeight - canvas.height) / 2;
     scale = 1;
     rotation = 0;
     applyTransforms();
 }
 
-// Undo/Redo Engine
+// Layer Allocation State Management
+function createLayerElement(name = `Layer ${layers.length + 1}`) {
+    const layerCanvas = document.createElement('canvas');
+    layerCanvas.width = canvas.width;
+    layerCanvas.height = canvas.height;
+    
+    const layerCtx = layerCanvas.getContext('2d');
+
+    const layerObj = {
+        id: layerIdCounter++,
+        name: name,
+        canvas: layerCanvas,
+        ctx: layerCtx,
+        visible: true,
+        opacity: 1.0,
+        blendMode: 'source-over',
+        clipping: false,
+        alphaLock: false
+    };
+
+    layers.unshift(layerObj); // New layers appear on top
+    activeLayerId = layerObj.id;
+    
+    updateLayersUI();
+    compositeCanvasStack();
+}
+
+function updateLayersUI() {
+    layersList.innerHTML = '';
+    
+    layers.forEach(layer => {
+        const item = document.createElement('div');
+        item.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''} ${layer.clipping ? 'clipping' : ''}`;
+        
+        item.addEventListener('click', () => {
+            activeLayerId = layer.id;
+            updateLayersUI();
+            updateGlobalLayerControlsUI();
+        });
+
+        // Unique dynamic mini canvas snapshot tracking
+        const thumb = document.createElement('img');
+        thumb.className = 'layer-thumbnail';
+        thumb.src = layer.canvas.toDataURL();
+
+        const title = document.createElement('span');
+        title.className = 'layer-title-text';
+        title.textContent = layer.name;
+
+        // Visibility Toggle Check
+        const visBtn = document.createElement('button');
+        visBtn.className = 'layer-item-btn';
+        visBtn.innerHTML = layer.visible ? 
+            `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>` :
+            `<svg viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.82l2.92 2.92c1.51-1.26 2.7-2.89 3.44-4.74-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 2.2 0 4.27-.6 6.04-1.63l.43.43L20.73 22l1.27-1.27L3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>`;
+        
+        visBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            layer.visible = !layer.visible;
+            updateLayersUI();
+            compositeCanvasStack();
+        });
+
+        // Delete Layer Action
+        const delBtn = document.createElement('button');
+        delBtn.className = 'layer-item-btn';
+        delBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (layers.length <= 1) {
+                alert("You need to keep at least one layer!");
+                return;
+            }
+            layers = layers.filter(l => l.id !== layer.id);
+            if (activeLayerId === layer.id) activeLayerId = layers[0].id;
+            updateLayersUI();
+            updateGlobalLayerControlsUI();
+            compositeCanvasStack();
+        });
+
+        item.appendChild(thumb);
+        item.appendChild(title);
+        item.appendChild(visBtn);
+        item.appendChild(delBtn);
+        layersList.appendChild(item);
+    });
+}
+
+function updateGlobalLayerControlsUI() {
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (!layer) return;
+
+    clippingBtn.classList.toggle('active', layer.clipping);
+    alphaLockBtn.classList.toggle('active', layer.alphaLock);
+    blendModeSelect.value = layer.blendMode;
+    layerOpacityRange.value = layer.opacity * 100;
+}
+
+// Side Control Events Linked to Current Layer Context
+addLayerBtn.addEventListener('click', () => createLayerElement());
+
+clippingBtn.addEventListener('click', () => {
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (layer) {
+        layer.clipping = !layer.clipping;
+        updateLayersUI();
+        updateGlobalLayerControlsUI();
+        compositeCanvasStack();
+    }
+});
+
+alphaLockBtn.addEventListener('click', () => {
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (layer) {
+        layer.alphaLock = !layer.alphaLock;
+        updateGlobalLayerControlsUI();
+    }
+});
+
+blendModeSelect.addEventListener('change', (e) => {
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (layer) {
+        layer.blendMode = e.target.value;
+        compositeCanvasStack();
+    }
+});
+
+layerOpacityRange.addEventListener('input', (e) => {
+    const layer = layers.find(l => l.id === activeLayerId);
+    if (layer) {
+        layer.opacity = e.target.value / 100;
+        compositeCanvasStack();
+    }
+});
+
+// Structural Composite Core Painter
+function compositeCanvasStack() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Always render from base bottom up to top item
+    for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (!layer.visible) continue;
+
+        ctx.save();
+        ctx.globalAlpha = layer.opacity;
+        ctx.globalCompositeOperation = layer.blendMode;
+
+        if (layer.clipping && i < layers.length - 1) {
+            // Clip mask logic against immediate underlying layer structure context
+            const baseLayer = layers[i + 1];
+            
+            // Mask generator canvas creation
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = canvas.width;
+            maskCanvas.height = canvas.height;
+            const maskCtx = maskCanvas.getContext('2d');
+            
+            maskCtx.drawImage(baseLayer.canvas, 0, 0);
+            maskCtx.globalCompositeOperation = 'source-in';
+            maskCtx.drawImage(layer.canvas, 0, 0);
+            
+            ctx.drawImage(maskCanvas, 0, 0);
+        } else {
+            ctx.drawImage(layer.canvas, 0, 0);
+        }
+        ctx.restore();
+    }
+}
+
+// History Handling Overhaul
 function saveHistoryState() {
-    undoStack.push(canvas.toDataURL());
+    // Collect snapshot states from all layered components across history arrays
+    const stateSnapshot = layers.map(l => ({
+        id: l.id,
+        name: l.name,
+        visible: l.visible,
+        opacity: l.opacity,
+        blendMode: l.blendMode,
+        clipping: l.clipping,
+        alphaLock: l.alphaLock,
+        data: l.canvas.toDataURL()
+    }));
+
+    undoStack.push(JSON.stringify(stateSnapshot));
     if (undoStack.length > MAX_HISTORY) undoStack.shift();
     redoStack = []; 
     updateHistoryButtons();
@@ -215,32 +424,71 @@ function updateHistoryButtons() {
 function applyHistoryState(targetStack, destinationStack) {
     if (targetStack.length === 0) return;
     
-    destinationStack.push(canvas.toDataURL());
-    const stateData = targetStack.pop();
+    // Package current operational layout parameters to reciprocal undo paths
+    const currentStateSnapshot = layers.map(l => ({
+        id: l.id,
+        name: l.name,
+        visible: l.visible,
+        opacity: l.opacity,
+        blendMode: l.blendMode,
+        clipping: l.clipping,
+        alphaLock: l.alphaLock,
+        data: l.canvas.toDataURL()
+    }));
+    destinationStack.push(JSON.stringify(currentStateSnapshot));
 
-    const img = new Image();
-    img.onload = function() {
-        ctx.save();
-        ctx.globalAlpha = 1.0;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-        ctx.restore();
-        updateHistoryButtons();
-    };
-    img.src = stateData;
+    const stateData = JSON.parse(targetStack.pop());
+    
+    // Map structural elements sequentially backward over standard target pointers
+    let loadedCount = 0;
+    layers = stateData.map(storedLayer => {
+        const layerCanvas = document.createElement('canvas');
+        layerCanvas.width = canvas.width;
+        layerCanvas.height = canvas.height;
+        const layerCtx = layerCanvas.getContext('2d');
+
+        const img = new Image();
+        img.onload = () => {
+            layerCtx.drawImage(img, 0, 0);
+            loadedCount++;
+            if (loadedCount === stateData.length) {
+                updateLayersUI();
+                updateGlobalLayerControlsUI();
+                compositeCanvasStack();
+            }
+        };
+        img.src = storedLayer.data;
+
+        return {
+            id: storedLayer.id,
+            name: storedLayer.name,
+            canvas: layerCanvas,
+            ctx: layerCtx,
+            visible: storedLayer.visible,
+            opacity: storedLayer.opacity,
+            blendMode: storedLayer.blendMode,
+            clipping: storedLayer.clipping,
+            alphaLock: storedLayer.alphaLock
+        };
+    });
+
+    if (!layers.some(l => l.id === activeLayerId)) {
+        activeLayerId = layers[0].id;
+    }
+    updateHistoryButtons();
 }
 
 undoBtn.addEventListener('click', () => applyHistoryState(undoStack, redoStack));
 redoBtn.addEventListener('click', () => applyHistoryState(redoStack, undoStack));
 
-// Menu Options Logic
+// Menu Actions Realignment
 newFileBtn.addEventListener('click', () => {
     if (recordingInterval) clearInterval(recordingInterval);
     speedpaintFrames = [];
     workspace.classList.add('hidden');
     startMenu.classList.remove('hidden');
     menuDropdown.classList.remove('show');
+    layerSidebar.classList.remove('show');
 });
 
 savePngBtn.addEventListener('click', () => {
@@ -323,14 +571,25 @@ function initCanvas(width, height) {
     canvas.width = width;
     canvas.height = height;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     startMenu.classList.add('hidden');
     workspace.classList.remove('hidden');
     
     transformContainer.style.width = canvas.width + 'px';
     transformContainer.style.height = canvas.height + 'px';
+    
+    layers = [];
+    layerIdCounter = 0;
+    
+    // Build Base Canvas Environment Layer
+    createLayerElement("Background Layer");
+    
+    // Flood fill default pure white onto base layout canvas layer
+    const baseLayer = layers[0];
+    baseLayer.ctx.fillStyle = '#ffffff';
+    baseLayer.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Inject clean overlay transparent lineart layer
+    createLayerElement("Layer 1");
     
     centerCanvas();
     attachDrawingListeners();
@@ -338,6 +597,7 @@ function initCanvas(width, height) {
     undoStack = [];
     redoStack = [];
     updateHistoryButtons();
+    updateGlobalLayerControlsUI();
 
     startSpeedpaintRecording();
 }
@@ -357,7 +617,10 @@ fileInput.addEventListener('change', (e) => {
         const img = new Image();
         img.onload = function() {
             initCanvas(img.width, img.height);
-            ctx.drawImage(img, 0, 0);
+            // Draw import assets direct to default dynamic base tracking structure
+            const targetLayer = layers.find(l => l.id === activeLayerId);
+            targetLayer.ctx.drawImage(img, 0, 0);
+            compositeCanvasStack();
         }
         img.src = event.target.result;
     }
@@ -466,59 +729,79 @@ function getCanvasCoordinates(e) {
 }
 
 function startDrawing(e) {
-    // If two fingers are touching, abort standard drawing to handle zoom/rotate instead
     if (activePointers.length >= 2) return; 
     
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer || !activeLayer.visible) return; // Prevent drawing to phantom elements
+
     saveHistoryState(); 
     drawing = true;
     strokeHasPainted = false; 
 
     const coords = getCanvasCoordinates(e);
-    ctx.beginPath();
-    ctx.moveTo(coords.x, coords.y);
+    activeLayer.ctx.beginPath();
+    activeLayer.ctx.moveTo(coords.x, coords.y);
     drawStroke(e);
 }
 
 function drawStroke(e) {
     if (!drawing || activePointers.length >= 2) return;
-    strokeHasPainted = true;
-
-    const coords = getCanvasCoordinates(e);
     
-    ctx.save();
-    ctx.lineWidth = currentBrushSize;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.globalAlpha = currentOpacity;
+    const activeLayer = layers.find(l => l.id === activeLayerId);
+    if (!activeLayer) return;
 
-    if (currentTool === 'eraser') {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.strokeStyle = 'rgba(0,0,0,1.0)';
+    strokeHasPainted = true;
+    const coords = getCanvasCoordinates(e);
+    const lCtx = activeLayer.ctx;
+    
+    lCtx.save();
+    lCtx.lineWidth = currentBrushSize;
+    lCtx.lineCap = 'round';
+    lCtx.lineJoin = 'round';
+    lCtx.globalAlpha = currentOpacity;
+
+    if (activeLayer.alphaLock) {
+        lCtx.globalCompositeOperation = 'source-in';
+    } else if (currentTool === 'eraser') {
+        lCtx.globalCompositeOperation = 'destination-out';
     } else {
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = activeColor;
+        lCtx.globalCompositeOperation = 'source-over';
     }
 
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-    ctx.restore();
+    if (currentTool === 'eraser' && !activeLayer.alphaLock) {
+        lCtx.strokeStyle = 'rgba(0,0,0,1.0)';
+    } else {
+        lCtx.strokeStyle = activeColor;
+    }
+
+    lCtx.lineTo(coords.x, coords.y);
+    lCtx.stroke();
+    lCtx.restore();
     
-    ctx.beginPath();
-    ctx.moveTo(coords.x, coords.y);
+    lCtx.beginPath();
+    lCtx.moveTo(coords.x, coords.y);
+
+    // Dynamic rendering layout synchronization composite call
+    compositeCanvasStack();
 }
 
 function stopDrawing() {
     if (drawing) {
         drawing = false;
-        ctx.beginPath();
+        const activeLayer = layers.find(l => l.id === activeLayerId);
+        if (activeLayer) activeLayer.ctx.beginPath();
+        
         if (strokeHasPainted && currentTool === 'brush') {
             commitColorToPalette(activeColor);
         }
+        
+        // Refresh thumbnail panel and record live frames
+        updateLayersUI();
         speedpaintFrames.push(canvas.toDataURL('image/jpeg', 0.6));
     }
 }
 
-// Global Workspace Gestures (Zooming Allowed Everywhere Including On Top Of Canvas)
+// Global Workspace Gestures (Zooming Allowed Everywhere)
 let activePointers = [];
 let startPanX = 0, startPanY = 0;
 let initialTouchDist = 0;
@@ -535,21 +818,17 @@ function getAngle(p1, p2) {
     return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
 }
 
-// Track touch event lists globally to cleanly catch 2-finger zoom interactions over the canvas
 const handlePointerDownGlobal = (e) => {
-    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
+    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar')) return;
 
-    // Filter duplicates
     if (activePointers.some(p => p.pointerId === e.pointerId)) return;
     activePointers.push(e);
     
     if (activePointers.length === 1 && e.target !== canvas) {
-        // Only allow background single-finger drag panning when NOT directly touching the paint canvas surface
         isPanning = true;
         startPanX = e.clientX - panX;
         startPanY = e.clientY - panY;
     } else if (activePointers.length === 2) {
-        // Halt drawing states instantly if a second finger hits the workspace screen
         if (drawing) stopDrawing(); 
         
         isPanning = false;
@@ -601,7 +880,7 @@ window.addEventListener('pointerup', handlePointerUp);
 window.addEventListener('pointercancel', handlePointerUp);
 
 workspace.addEventListener('wheel', (e) => {
-    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
+    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar')) return;
     e.preventDefault();
     const zoomFactor = 1.1;
     let targetScale = scale;
