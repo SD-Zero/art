@@ -78,6 +78,10 @@ let layers = [];
 let activeLayerId = null;
 let layerIdCounter = 0;
 
+// Offscreen Buffer for Alpha Lock
+let alphaBufferCanvas = document.createElement('canvas');
+let alphaBufferCtx = alphaBufferCanvas.getContext('2d');
+
 // iOS Double-Tap System Zoom Prevention Engine
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
@@ -181,8 +185,11 @@ closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
-// Global Tap Listener (Persistent Layer GUI Exception Added)
+// FIXED: Global Tap Listener ignores layer sidebar clicks entirely
 window.addEventListener('pointerdown', (e) => {
+    if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) {
+        return; 
+    }
     if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
         menuDropdown.classList.remove('show');
     }
@@ -224,7 +231,7 @@ function centerCanvas() {
 
 // Layer Reordering Engine
 function moveLayerUp(index) {
-    if (index === 0) return; // Already at the top
+    if (index === 0) return; 
     saveHistoryState();
     const temp = layers[index];
     layers[index] = layers[index - 1];
@@ -234,7 +241,7 @@ function moveLayerUp(index) {
 }
 
 function moveLayerDown(index) {
-    if (index === layers.length - 1) return; // Already at the bottom
+    if (index === layers.length - 1) return; 
     saveHistoryState();
     const temp = layers[index];
     layers[index] = layers[index + 1];
@@ -278,7 +285,7 @@ function updateLayersUI() {
         item.className = `layer-item ${layer.id === activeLayerId ? 'active' : ''} ${layer.clipping ? 'clipping' : ''}`;
         
         item.addEventListener('click', (e) => {
-            if (e.target.closest('button')) return;
+            if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
             activeLayerId = layer.id;
             updateLayersUI();
             updateGlobalLayerControlsUI();
@@ -292,13 +299,12 @@ function updateLayersUI() {
         title.className = 'layer-title-text';
         title.textContent = layer.name;
 
-        // Up/Down Arrows Reordering Controls
         const orderControls = document.createElement('div');
         orderControls.className = 'layer-order-controls';
         
         const upBtn = document.createElement('button');
         upBtn.className = 'layer-order-btn';
-        upBtn.innerHTML = '&#9650;'; // Up Arrow Symbol
+        upBtn.innerHTML = '&#9650;'; 
         upBtn.title = 'Move Layer Up';
         upBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -307,7 +313,7 @@ function updateLayersUI() {
 
         const downBtn = document.createElement('button');
         downBtn.className = 'layer-order-btn';
-        downBtn.innerHTML = '&#9660;'; // Down Arrow Symbol
+        downBtn.innerHTML = '&#9660;'; 
         downBtn.title = 'Move Layer Down';
         downBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -317,7 +323,6 @@ function updateLayersUI() {
         orderControls.appendChild(upBtn);
         orderControls.appendChild(downBtn);
 
-        // Visibility Toggle Check
         const visBtn = document.createElement('button');
         visBtn.className = 'layer-item-btn';
         visBtn.innerHTML = layer.visible ? 
@@ -331,7 +336,6 @@ function updateLayersUI() {
             compositeCanvasStack();
         });
 
-        // Delete Layer Action
         const delBtn = document.createElement('button');
         delBtn.className = 'layer-item-btn';
         delBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`;
@@ -368,7 +372,6 @@ function updateGlobalLayerControlsUI() {
     layerOpacityRange.value = layer.opacity * 100;
 }
 
-// Side Control Events Linked to Current Layer Context
 addLayerBtn.addEventListener('click', () => {
     saveHistoryState();
     createLayerElement();
@@ -414,7 +417,6 @@ layerOpacityRange.addEventListener('input', (e) => {
 function compositeCanvasStack() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Render from bottom to top index
     for (let i = layers.length - 1; i >= 0; i--) {
         const layer = layers[i];
         if (!layer.visible) continue;
@@ -525,7 +527,6 @@ function applyHistoryState(targetStack, destinationStack) {
 undoBtn.addEventListener('click', () => applyHistoryState(undoStack, redoStack));
 redoBtn.addEventListener('click', () => applyHistoryState(redoStack, undoStack));
 
-// Menu Actions Realignment
 newFileBtn.addEventListener('click', () => {
     if (recordingInterval) clearInterval(recordingInterval);
     speedpaintFrames = [];
@@ -611,16 +612,12 @@ function startSpeedpaintRecording() {
     }, 100); 
 }
 
-// Alpha Lock Scratchpad Layer Generation Canvas
-let alphaScratchCanvas = document.createElement('canvas');
-let alphaScratchCtx = alphaScratchCanvas.getContext('2d');
-
 function initCanvas(width, height) {
     canvas.width = width;
     canvas.height = height;
     
-    alphaScratchCanvas.width = width;
-    alphaScratchCanvas.height = height;
+    alphaBufferCanvas.width = width;
+    alphaBufferCanvas.height = height;
 
     startMenu.classList.add('hidden');
     workspace.classList.remove('hidden');
@@ -631,7 +628,6 @@ function initCanvas(width, height) {
     layers = [];
     layerIdCounter = 0;
     
-    // True Transparent Launch Structure: Single layer initialization
     createLayerElement("Layer 1");
     
     centerCanvas();
@@ -770,6 +766,8 @@ function getCanvasCoordinates(e) {
     };
 }
 
+let lastCoords = null;
+
 function startDrawing(e) {
     if (activePointers.length >= 2) return; 
     
@@ -781,22 +779,19 @@ function startDrawing(e) {
     strokeHasPainted = false; 
 
     const coords = getCanvasCoordinates(e);
+    lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // Clear isolated alpha scratch canvas for real-time composition tracking
-        alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-        alphaScratchCtx.beginPath();
-        alphaScratchCtx.moveTo(coords.x, coords.y);
-    } else {
-        activeLayer.ctx.beginPath();
-        activeLayer.ctx.moveTo(coords.x, coords.y);
+        // FIXED: Cache the layer's pristine state right before making changes
+        alphaBufferCtx.clearRect(0, 0, canvas.width, canvas.height);
+        alphaBufferCtx.drawImage(activeLayer.canvas, 0, 0);
     }
     
     drawStroke(e);
 }
 
 function drawStroke(e) {
-    if (!drawing || activePointers.length >= 2) return;
+    if (!drawing || activePointers.length >= 2 || !lastCoords) return;
     
     const activeLayer = layers.find(l => l.id === activeLayerId);
     if (!activeLayer) return;
@@ -804,50 +799,59 @@ function drawStroke(e) {
     strokeHasPainted = true;
     const coords = getCanvasCoordinates(e);
     
-    // Choose appropriate context interface depending on target context parameters
-    const renderCtx = activeLayer.alphaLock ? alphaScratchCtx : activeLayer.ctx;
-    
-    renderCtx.save();
-    renderCtx.lineWidth = currentBrushSize;
-    renderCtx.lineCap = 'round';
-    renderCtx.lineJoin = 'round';
-    renderCtx.globalAlpha = currentOpacity;
-
-    if (!activeLayer.alphaLock && currentTool === 'eraser') {
-        renderCtx.globalCompositeOperation = 'destination-out';
-        renderCtx.strokeStyle = 'rgba(0,0,0,1.0)';
-    } else {
-        renderCtx.globalCompositeOperation = 'source-over';
-        renderCtx.strokeStyle = activeColor;
-    }
-
-    renderCtx.lineTo(coords.x, coords.y);
-    renderCtx.stroke();
-    renderCtx.restore();
-    
-    renderCtx.beginPath();
-    renderCtx.moveTo(coords.x, coords.y);
-
+    // FIXED Alpha Lock Engine Strategy:
     if (activeLayer.alphaLock) {
-        // Composite new strokes constrained strictly inside target destination bounds
+        // 1. Draw your brush strokes normally onto the current layer
+        activeLayer.ctx.save();
+        activeLayer.ctx.lineWidth = currentBrushSize;
+        activeLayer.ctx.lineCap = 'round';
+        activeLayer.ctx.lineJoin = 'round';
+        activeLayer.ctx.globalAlpha = currentOpacity;
+        activeLayer.ctx.globalCompositeOperation = 'source-over';
+        activeLayer.ctx.strokeStyle = activeColor;
+        
+        activeLayer.ctx.beginPath();
+        activeLayer.ctx.moveTo(lastCoords.x, lastCoords.y);
+        activeLayer.ctx.lineTo(coords.x, coords.y);
+        activeLayer.ctx.stroke();
+        activeLayer.ctx.restore();
+
+        // 2. Re-mask using original pixels from the buffer via 'source-in'
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'source-in';
-        activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
+        activeLayer.ctx.drawImage(alphaBufferCanvas, 0, 0);
+        activeLayer.ctx.restore();
+    } else {
+        // Normal rendering path (Standard Brush / Eraser modes)
+        activeLayer.ctx.save();
+        activeLayer.ctx.lineWidth = currentBrushSize;
+        activeLayer.ctx.lineCap = 'round';
+        activeLayer.ctx.lineJoin = 'round';
+        activeLayer.ctx.globalAlpha = currentOpacity;
+
+        if (currentTool === 'eraser') {
+            activeLayer.ctx.globalCompositeOperation = 'destination-out';
+            activeLayer.ctx.strokeStyle = 'rgba(0,0,0,1.0)';
+        } else {
+            activeLayer.ctx.globalCompositeOperation = 'source-over';
+            activeLayer.ctx.strokeStyle = activeColor;
+        }
+
+        activeLayer.ctx.beginPath();
+        activeLayer.ctx.moveTo(lastCoords.x, lastCoords.y);
+        activeLayer.ctx.lineTo(coords.x, coords.y);
+        activeLayer.ctx.stroke();
         activeLayer.ctx.restore();
     }
-
+    
+    lastCoords = coords;
     compositeCanvasStack();
 }
 
 function stopDrawing() {
     if (drawing) {
         drawing = false;
-        const activeLayer = layers.find(l => l.id === activeLayerId);
-        
-        if (activeLayer) {
-            activeLayer.ctx.beginPath();
-            if (activeLayer.alphaLock) alphaScratchCtx.beginPath();
-        }
+        lastCoords = null;
         
         if (strokeHasPainted && currentTool === 'brush') {
             commitColorToPalette(activeColor);
