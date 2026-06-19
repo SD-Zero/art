@@ -108,27 +108,28 @@
             display: none;
         }
 
-        /* ART WORKSPACE (Fills entire viewport) */
+        /* ART WORKSPACE (Procreate-style Slate Dark Gray) */
         .workspace {
             position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
-            background-color: #111;
+            background-color: #1e1e1e;
             touch-action: none; /* Prevents default browser scrolling/zooming */
         }
 
         /* Viewport tracking container for PAN/ZOOM/ROTATE transforms */
         .transform-container {
             position: absolute;
-            transform-origin: 0 0;
+            transform-origin: center center;
             display: inline-block;
         }
 
         canvas {
             background-color: #ffffff;
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid #2d2d2d;
             display: block;
         }
     </style>
@@ -184,7 +185,7 @@
         let scale = 1;
         let panX = 0;
         let panY = 0;
-        let rotation = 0; // In degrees
+        let rotation = 0; 
 
         // Track pointer states for multi-touch gestures
         let activePointers = [];
@@ -195,7 +196,7 @@
         let initialRotation = 0;
         let isPanning = false;
 
-        // Handles the real-time visual size preview calculation
+        // Function to update the preview box proportions
         function updatePreview() {
             const w = parseInt(canvasWidthInput.value) || 1;
             const h = parseInt(canvasHeightInput.value) || 1;
@@ -214,15 +215,17 @@
         canvasHeightInput.addEventListener('input', updatePreview);
         updatePreview();
 
-        // Update CSS Transforms for Pan, Zoom, and Rotation
+        // Update CSS Transforms safely
         function applyTransforms() {
             transformContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale}) rotate(${rotation}deg)`;
         }
 
-        // Center the canvas inside the viewport window dynamically
+        // Center the canvas precisely in the middle of the workspace screen
         function centerCanvas() {
-            panX = (window.innerWidth - canvas.width * scale) / 2;
-            panY = (window.innerHeight - canvas.height * scale) / 2;
+            panX = (window.innerWidth - canvas.width) / 2;
+            panY = (window.innerHeight - canvas.height) / 2;
+            scale = 1;
+            rotation = 0;
             applyTransforms();
         }
 
@@ -237,6 +240,10 @@
 
             startMenu.classList.add('hidden');
             workspace.classList.remove('hidden');
+            
+            // Set explicit transform sizes matching canvas specs to stabilize pivot math
+            transformContainer.style.width = canvas.width + 'px';
+            transformContainer.style.height = canvas.height + 'px';
             
             centerCanvas();
         }
@@ -267,7 +274,6 @@
 
         /* DESKTOP MOUSE / MOBILE GESTURE ENGINE FOR PAN, ZOOM, ROTATE */
         
-        // helper functions for calculations
         function getDistance(p1, p2) {
             return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
         }
@@ -280,26 +286,22 @@
             activePointers.push(e);
             
             if (activePointers.length === 1) {
-                // Single touch / Right click pan trigger setup
                 isPanning = true;
                 startPanX = e.clientX - panX;
                 startPanY = e.clientY - panY;
             } else if (activePointers.length === 2) {
-                // Multi touch gesture setup
                 isPanning = false;
                 initialTouchDist = getDistance(activePointers[0], activePointers[1]);
                 initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
                 initialScale = scale;
                 initialRotation = rotation;
                 
-                // Track mid-points to pivot from between fingers
                 startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
                 startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
             }
         });
 
         workspace.addEventListener('pointermove', (e) => {
-            // Find and update active pointer inside array state
             const index = activePointers.findIndex(p => p.pointerId === e.pointerId);
             if (index !== -1) activePointers[index] = e;
 
@@ -308,19 +310,14 @@
                 panY = e.clientY - startPanY;
                 applyTransforms();
             } else if (activePointers.length === 2) {
-                // Process pinch-zoom and rotation concurrently
                 const currentDist = getDistance(activePointers[0], activePointers[1]);
                 const currentAngle = getAngle(activePointers[0], activePointers[1]);
 
-                scale = initialScale * (currentDist / initialTouchDist);
+                let targetScale = initialScale * (currentDist / initialTouchDist);
+                // Clamp zoom scale factor safely between 0.1x and 10x size limits
+                scale = Math.max(0.1, Math.min(targetScale, 10));
+                
                 rotation = initialRotation + (currentAngle - initialTouchAngle);
-                
-                // Keep center focal point moving smoothly between fingers
-                const midX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
-                const midY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
-                
-                // Update track position dynamically based on continuous transformations
-                // We'll update the values directly via gestures
                 applyTransforms();
             }
         });
@@ -339,17 +336,19 @@
         workspace.addEventListener('pointerup', handlePointerUp);
         workspace.addEventListener('pointercancel', handlePointerUp);
 
-        // Desktop Mouse Wheel Zoom Support
+        // Desktop Mouse Wheel Zoom Support (Stabilized)
         workspace.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomFactor = 1.1;
+            let targetScale = scale;
             
-            // Adjust zoom factor scaling target directions
             if (e.deltaY < 0) {
-                scale *= zoomFactor;
+                targetScale *= zoomFactor;
             } else {
-                scale /= zoomFactor;
+                targetScale /= zoomFactor;
             }
+            
+            scale = Math.max(0.1, Math.min(targetScale, 10));
             applyTransforms();
         }, { passive: false });
 
