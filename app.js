@@ -390,22 +390,6 @@ clippingBtn.addEventListener('click', () => {
     }
 });
 
-addLayerBtn.addEventListener('click', () => {
-    saveHistoryState();
-    createLayerElement();
-});
-
-clippingBtn.addEventListener('click', () => {
-    const layer = layers.find(l => l.id === activeLayerId);
-    if (layer) {
-        saveHistoryState();
-        layer.clipping = !layer.clipping;
-        updateLayersUI();
-        updateGlobalLayerControlsUI();
-        compositeCanvasStack();
-    }
-});
-
 alphaLockBtn.addEventListener('click', () => {
     const layer = layers.find(l => l.id === activeLayerId);
     if (layer) {
@@ -802,11 +786,13 @@ function startDrawing(e) {
     lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // Alpha Lock Snapshot Initialization
+        // 1. Keep a backup copy of ONLY the alpha mask opacity shape boundaries
         alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
 
+        // 2. Load the current full artwork onto the scratch drawing buffer
         alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
+        alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
     }
     
     drawStroke(e);
@@ -823,7 +809,7 @@ function drawStroke(e) {
     
     // FIXED Alpha Lock Draw Logic
     if (activeLayer.alphaLock) {
-        // 1. Accumulate brush strokes dynamically onto our scratch canvas
+        // 1. Draw live paths directly over the baseline copy in our scratch canvas
         alphaScratchCtx.save();
         alphaScratchCtx.lineWidth = currentBrushSize;
         alphaScratchCtx.lineCap = 'round';
@@ -838,17 +824,17 @@ function drawStroke(e) {
         alphaScratchCtx.stroke();
         alphaScratchCtx.restore();
 
-        // 2. Refresh the real layer with the PRISTINE snapshot of the artwork
+        // 2. Wipe the layer canvas and push down the updated full composite scratch art
         activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
-
-        // 3. Draw the live line paths bounded strictly to the pre-existing transparent data limits
-        activeLayer.ctx.save();
-        activeLayer.ctx.globalCompositeOperation = 'source-in';
         activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
+
+        // 3. Re-crop the entire layer using destination-in matched against the starting alpha bounds
+        activeLayer.ctx.save();
+        activeLayer.ctx.globalCompositeOperation = 'destination-in';
+        activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
         activeLayer.ctx.restore();
     } else {
-        // Standard Drawing Routine
+        // Standard Brush Drawing Routine
         activeLayer.ctx.save();
         activeLayer.ctx.lineWidth = currentBrushSize;
         activeLayer.ctx.lineCap = 'round';
