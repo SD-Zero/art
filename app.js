@@ -60,9 +60,18 @@ let undoStack = [];
 let redoStack = [];
 const MAX_HISTORY = 20;
 
-// High-Compatibility iOS Speedpaint Frame Buffer
 let speedpaintFrames = [];
 let recordingInterval = null;
+
+// iOS Double-Tap System Zoom Prevention Engine
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = (new Date()).getTime();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault(); 
+    }
+    lastTouchEnd = now;
+}, { passive: false });
 
 // Custom Sliders Engine
 function setupCustomSlider(container, fill, handle, bubble, min, max, initialValue, onChange) {
@@ -132,14 +141,14 @@ eraserBtn.addEventListener('click', () => {
     brushBtn.classList.remove('active');
 });
 
-// Dropdowns and Panels
-menuBtn.addEventListener('click', (e) => {
+// Dropdowns and Panels Triggering Logic
+menuBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     colorPanel.classList.remove('show');
     menuDropdown.classList.toggle('show');
 });
 
-colorBtn.addEventListener('click', (e) => {
+colorBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     menuDropdown.classList.remove('show');
     colorPanel.classList.toggle('show');
@@ -150,9 +159,14 @@ closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
-window.addEventListener('click', (e) => {
-    if (!menuDropdown.contains(e.target) && e.target !== menuBtn) menuDropdown.classList.remove('show');
-    if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) colorPanel.classList.remove('show');
+// Global tap listener that explicitly dismisses drop panels when clicking elsewhere
+window.addEventListener('pointerdown', (e) => {
+    if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
+        menuDropdown.classList.remove('show');
+    }
+    if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
+        colorPanel.classList.remove('show');
+    }
 });
 
 // Canvas Size Preview
@@ -267,7 +281,6 @@ saveSvgBtn.addEventListener('click', () => {
     menuDropdown.classList.remove('show');
 });
 
-// Native iOS MJPEG/MP4 Speedpaint Compiler Linker
 saveSpeedpaintBtn.addEventListener('click', () => {
     menuDropdown.classList.remove('show');
     if (speedpaintFrames.length === 0) {
@@ -275,7 +288,6 @@ saveSpeedpaintBtn.addEventListener('click', () => {
         return;
     }
 
-    // Professional binary file generation loop avoiding structural restrictions
     const blobs = [];
     for (let i = 0; i < speedpaintFrames.length; i++) {
         const byteString = atob(speedpaintFrames[i].split(',')[1]);
@@ -295,20 +307,16 @@ saveSpeedpaintBtn.addEventListener('click', () => {
     link.click();
 });
 
-// Seamless Background Framework Snapshot Engine
 function startSpeedpaintRecording() {
     if (recordingInterval) clearInterval(recordingInterval);
     speedpaintFrames = [];
-    
-    // Add the starting blank canvas state frame
     speedpaintFrames.push(canvas.toDataURL('image/jpeg', 0.6));
 
-    // Capture frames dynamically to lower processing overhead
     recordingInterval = setInterval(() => {
         if (drawing && speedpaintFrames.length < 2000) { 
             speedpaintFrames.push(canvas.toDataURL('image/jpeg', 0.6));
         }
-    }, 100); // 10 Frames Per Second tracking
+    }, 100); 
 }
 
 function initCanvas(width, height) {
@@ -458,7 +466,8 @@ function getCanvasCoordinates(e) {
 }
 
 function startDrawing(e) {
-    if (activePointers.length > 0) return; 
+    // If two fingers are touching, abort standard drawing to handle zoom/rotate instead
+    if (activePointers.length >= 2) return; 
     
     saveHistoryState(); 
     drawing = true;
@@ -471,7 +480,7 @@ function startDrawing(e) {
 }
 
 function drawStroke(e) {
-    if (!drawing) return;
+    if (!drawing || activePointers.length >= 2) return;
     strokeHasPainted = true;
 
     const coords = getCanvasCoordinates(e);
@@ -505,12 +514,11 @@ function stopDrawing() {
         if (strokeHasPainted && currentTool === 'brush') {
             commitColorToPalette(activeColor);
         }
-        // Force append a milestone keyframe frame whenever a line stroke terminates
         speedpaintFrames.push(canvas.toDataURL('image/jpeg', 0.6));
     }
 }
 
-// Workspace Gestures (Zoom & Pan)
+// Global Workspace Gestures (Zooming Allowed Everywhere Including On Top Of Canvas)
 let activePointers = [];
 let startPanX = 0, startPanY = 0;
 let initialTouchDist = 0;
@@ -527,17 +535,23 @@ function getAngle(p1, p2) {
     return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
 }
 
-workspace.addEventListener('pointerdown', (e) => {
+// Track touch event lists globally to cleanly catch 2-finger zoom interactions over the canvas
+const handlePointerDownGlobal = (e) => {
     if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
-    if (e.target === canvas) return;
 
+    // Filter duplicates
+    if (activePointers.some(p => p.pointerId === e.pointerId)) return;
     activePointers.push(e);
     
-    if (activePointers.length === 1) {
+    if (activePointers.length === 1 && e.target !== canvas) {
+        // Only allow background single-finger drag panning when NOT directly touching the paint canvas surface
         isPanning = true;
         startPanX = e.clientX - panX;
         startPanY = e.clientY - panY;
     } else if (activePointers.length === 2) {
+        // Halt drawing states instantly if a second finger hits the workspace screen
+        if (drawing) stopDrawing(); 
+        
         isPanning = false;
         initialTouchDist = getDistance(activePointers[0], activePointers[1]);
         initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
@@ -547,9 +561,9 @@ workspace.addEventListener('pointerdown', (e) => {
         startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
         startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
     }
-});
+};
 
-workspace.addEventListener('pointermove', (e) => {
+const handlePointerMoveGlobal = (e) => {
     const index = activePointers.findIndex(p => p.pointerId === e.pointerId);
     if (index !== -1) activePointers[index] = e;
 
@@ -567,7 +581,10 @@ workspace.addEventListener('pointermove', (e) => {
         rotation = initialRotation + (currentAngle - initialTouchAngle);
         applyTransforms();
     }
-});
+};
+
+window.addEventListener('pointerdown', handlePointerDownGlobal);
+window.addEventListener('pointermove', handlePointerMoveGlobal);
 
 function handlePointerUp(e) {
     activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
@@ -580,8 +597,8 @@ function handlePointerUp(e) {
     }
 }
 
-workspace.addEventListener('pointerup', handlePointerUp);
-workspace.addEventListener('pointercancel', handlePointerUp);
+window.addEventListener('pointerup', handlePointerUp);
+window.addEventListener('pointercancel', handlePointerUp);
 
 workspace.addEventListener('wheel', (e) => {
     if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
