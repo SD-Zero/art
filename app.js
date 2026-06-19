@@ -78,9 +78,11 @@ let layers = [];
 let activeLayerId = null;
 let layerIdCounter = 0;
 
-// Offscreen Buffer for Alpha Lock
-let alphaBufferCanvas = document.createElement('canvas');
-let alphaBufferCtx = alphaBufferCanvas.getContext('2d');
+// Dedicated Offscreen Buffers for Realtime Operations
+let alphaScratchCanvas = document.createElement('canvas');
+let alphaScratchCtx = alphaScratchCanvas.getContext('2d');
+let alphaBackupCanvas = document.createElement('canvas');
+let alphaBackupCtx = alphaBackupCanvas.getContext('2d');
 
 // iOS Double-Tap System Zoom Prevention Engine
 let lastTouchEnd = 0;
@@ -185,7 +187,7 @@ closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
-// FIXED: Global Tap Listener ignores layer sidebar clicks entirely
+// Global Tap Listener (Persistent Sidebar Exception Enabled)
 window.addEventListener('pointerdown', (e) => {
     if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) {
         return; 
@@ -417,6 +419,7 @@ layerOpacityRange.addEventListener('input', (e) => {
 function compositeCanvasStack() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
+    // Scan backwards from stack array bottom up to drawing viewport
     for (let i = layers.length - 1; i >= 0; i--) {
         const layer = layers[i];
         if (!layer.visible) continue;
@@ -425,6 +428,7 @@ function compositeCanvasStack() {
         ctx.globalAlpha = layer.opacity;
         ctx.globalCompositeOperation = layer.blendMode;
 
+        // FIXED clipping rendering path: Does not modify or lock base canvases
         if (layer.clipping && i < layers.length - 1) {
             const baseLayer = layers[i + 1];
             
@@ -616,8 +620,10 @@ function initCanvas(width, height) {
     canvas.width = width;
     canvas.height = height;
     
-    alphaBufferCanvas.width = width;
-    alphaBufferCanvas.height = height;
+    alphaScratchCanvas.width = width;
+    alphaScratchCanvas.height = height;
+    alphaBackupCanvas.width = width;
+    alphaBackupCanvas.height = height;
 
     startMenu.classList.add('hidden');
     workspace.classList.remove('hidden');
@@ -782,9 +788,11 @@ function startDrawing(e) {
     lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // FIXED: Cache the layer's pristine state right before making changes
-        alphaBufferCtx.clearRect(0, 0, canvas.width, canvas.height);
-        alphaBufferCtx.drawImage(activeLayer.canvas, 0, 0);
+        // FIXED Alpha Lock Startup: Keep a clean snapshot of the layer and start a blank stroke buffer
+        alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
+        alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
+
+        alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
     
     drawStroke(e);
@@ -799,30 +807,34 @@ function drawStroke(e) {
     strokeHasPainted = true;
     const coords = getCanvasCoordinates(e);
     
-    // FIXED Alpha Lock Engine Strategy:
+    // FIXED Alpha Lock Draw: Direct isolation mask workflow
     if (activeLayer.alphaLock) {
-        // 1. Draw your brush strokes normally onto the current layer
-        activeLayer.ctx.save();
-        activeLayer.ctx.lineWidth = currentBrushSize;
-        activeLayer.ctx.lineCap = 'round';
-        activeLayer.ctx.lineJoin = 'round';
-        activeLayer.ctx.globalAlpha = currentOpacity;
-        activeLayer.ctx.globalCompositeOperation = 'source-over';
-        activeLayer.ctx.strokeStyle = activeColor;
+        // 1. Render brush paths dynamically into the scratchpad
+        alphaScratchCtx.save();
+        alphaScratchCtx.lineWidth = currentBrushSize;
+        alphaScratchCtx.lineCap = 'round';
+        alphaScratchCtx.lineJoin = 'round';
+        alphaScratchCtx.globalAlpha = currentOpacity;
+        alphaScratchCtx.strokeStyle = activeColor;
+        alphaScratchCtx.globalCompositeOperation = 'source-over';
         
-        activeLayer.ctx.beginPath();
-        activeLayer.ctx.moveTo(lastCoords.x, lastCoords.y);
-        activeLayer.ctx.lineTo(coords.x, coords.y);
-        activeLayer.ctx.stroke();
-        activeLayer.ctx.restore();
+        alphaScratchCtx.beginPath();
+        alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
+        alphaScratchCtx.lineTo(coords.x, coords.y);
+        alphaScratchCtx.stroke();
+        alphaScratchCtx.restore();
 
-        // 2. Re-mask using original pixels from the buffer via 'source-in'
+        // 2. Clear out the layer and stamp back the clean base artwork
+        activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
+
+        // 3. Constrain new paths strictly to the baseline shape parameters
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'source-in';
-        activeLayer.ctx.drawImage(alphaBufferCanvas, 0, 0);
+        activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
         activeLayer.ctx.restore();
     } else {
-        // Normal rendering path (Standard Brush / Eraser modes)
+        // Standard Brush / Eraser flow
         activeLayer.ctx.save();
         activeLayer.ctx.lineWidth = currentBrushSize;
         activeLayer.ctx.lineCap = 'round';
@@ -898,6 +910,7 @@ const handlePointerDownGlobal = (e) => {
         initialScale = scale;
         initialRotation = rotation;
         
+        // Save viewport pan offsets tied to current midpoint geometry
         startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
         startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
     }
@@ -912,13 +925,20 @@ const handlePointerMoveGlobal = (e) => {
         panY = e.clientY - startPanY;
         applyTransforms();
     } else if (activePointers.length === 2) {
+        // FIXED Multi-Touch Engine: Allows fluid panning and zooming at the exact same time
         const currentDist = getDistance(activePointers[0], activePointers[1]);
         const currentAngle = getAngle(activePointers[0], activePointers[1]);
 
         let targetScale = initialScale * (currentDist / initialTouchDist);
         scale = Math.max(0.1, Math.min(targetScale, 10));
-        
         rotation = initialRotation + (currentAngle - initialTouchAngle);
+
+        const currentMidX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
+        const currentMidY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
+        
+        panX = currentMidX - startPanX;
+        panY = currentMidY - startPanY;
+
         applyTransforms();
     }
 };
@@ -928,11 +948,12 @@ window.addEventListener('pointermove', handlePointerMoveGlobal);
 
 function handlePointerUp(e) {
     activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
-    if (activePointers.length < 2) {
-        initialTouchDist = 0;
-        initialTouchAngle = 0;
-    }
-    if (activePointers.length === 0) {
+    if (activePointers.length === 1) {
+        // Recalibrate tracking parameters if user scales down to single finger mid-drag
+        isPanning = true;
+        startPanX = activePointers[0].clientX - panX;
+        startPanY = activePointers[0].clientY - panY;
+    } else {
         isPanning = false;
     }
 }
