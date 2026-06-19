@@ -149,7 +149,7 @@
             justify-content: flex-start;
             padding: 0 15px;
             box-sizing: border-box;
-            z-index: 100; /* Dropdown container context base */
+            z-index: 100;
         }
 
         .icon-btn {
@@ -165,7 +165,7 @@
             justify-content: center;
         }
 
-        .icon-btn:hover {
+        .icon-btn:hover, .icon-btn.active {
             background-color: #222222;
             color: #ffffff;
         }
@@ -176,7 +176,7 @@
             fill: currentColor;
         }
 
-        /* Dropdown Menu Styling (Fixed Z-Index overlapping) */
+        /* Dropdown Menu Styling */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -192,7 +192,7 @@
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
             border: 1px solid #2a2a2a;
             border-radius: 4px;
-            z-index: 150; /* Higher than left controls layer */
+            z-index: 150;
         }
 
         .dropdown-content a {
@@ -208,11 +208,112 @@
             color: #ffffff;
         }
 
+        /* --- NEW COLOR DROPDOWN PANEL UI --- */
+        .color-panel {
+            display: none;
+            position: absolute;
+            top: 55px;
+            left: 60px;
+            background-color: #1c1c1c;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 15px;
+            width: 240px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            z-index: 150;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .close-panel-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 5px;
+        }
+
+        .close-panel-btn:hover {
+            color: #fff;
+        }
+
+        .color-wheel-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        #colorWheel {
+            cursor: crosshair;
+            border-radius: 50%;
+        }
+
+        .hex-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #2a2a2a;
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+
+        .hex-input-group label {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .hex-input-group input {
+            background: none;
+            border: none;
+            color: #fff;
+            width: 80px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .color-swatch {
+            width: 100%;
+            padding-top: 100%; /* Keeps swatches perfectly square */
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-sizing: border-box;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.05);
+        }
+
         .show {
             display: block !important;
         }
 
-        /* --- LEFT SIDE SLIDERS UI (Fixed Overlap context) --- */
+        /* --- LEFT SIDE SLIDERS UI --- */
         .left-controls {
             position: absolute;
             left: 20px;
@@ -220,7 +321,7 @@
             display: flex;
             flex-direction: column;
             gap: 40px;
-            z-index: 10; /* Lowered layer value so drop downs go over it safely */
+            z-index: 10;
             background: rgba(18, 18, 18, 0.4);
             padding: 15px 10px;
             border-radius: 20px;
@@ -243,7 +344,6 @@
             letter-spacing: 1px;
         }
 
-        /* Turning sliders vertical with centered thumbs */
         .vertical-slider {
             -webkit-appearance: none;
             appearance: none;
@@ -258,7 +358,6 @@
             padding: 0;
         }
 
-        /* Centered Slider Thumb Styling */
         .vertical-slider::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
@@ -268,7 +367,6 @@
             background: #ffffff;
             cursor: pointer;
             box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-            /* Reset vertical alignment shifts */
             position: relative;
             margin-top: 0px; 
         }
@@ -337,8 +435,23 @@
             </button>
             
             <button class="icon-btn" id="lassoBtn" title="Lasso">
-                <svg viewBox="0 0 24 24"><path d="M12.24 2.19a1 1 0 0 0-1.06 0l-7.16 4.3a1 1 0 0 0-.52.86v7.3a1 1 0 0 0 .52.86l7.16 4.3a1 1 0 0 0 1.06 0l7.16-4.3a1 1 0 0 0 .52-.86v-7.3a1 1 0 0 0-.52-.86l-7.16-4.3zM19.5 13.92l-6.5 3.9v-7.8l6.5-3.9v7.8z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M18.06 13.04c.33-.8.44-1.67.31-2.54A5.942 5.942 0 0 0 13 5.06c-.87-.13-1.74-.02-2.54.31L4.63 2.13 3.37 3.63l5.59 3.19C8.36 7.82 8 8.87 8 10c0 2.76 2.24 5 5 5 .13 0 .26-.01.39-.02l2.37 4.15c-.49.19-.88.56-1.08 1.05-.4.93-.05 2.01.81 2.5a1.99 1.99 0 0 0 2.69-.81c.42-.93.02-2.02-.85-2.5l-2.31-4.04c1.17-.41 2.15-1.21 2.84-2.29l2.76 1.58 1.01-1.73-2.58-1.48zm-5.06.46c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
             </button>
+        </div>
+
+        <div id="colorPanel" class="color-panel">
+            <div class="panel-header">
+                <span class="panel-title">Colors</span>
+                <button id="closeColorBtn" class="close-panel-btn">&times;</button>
+            </div>
+            <div class="color-wheel-wrapper">
+                <canvas id="colorWheel" width="180" height="180"></canvas>
+            </div>
+            <div class="hex-input-group">
+                <label for="hexInput">HEX</label>
+                <input type="text" id="hexInput" value="#000000" maxlength="7">
+            </div>
+            <div id="paletteGrid" class="palette-grid"></div>
         </div>
 
         <div class="left-controls">
@@ -376,20 +489,16 @@
         const brushSizeSlider = document.getElementById('brushSize');
         const brushOpacitySlider = document.getElementById('brushOpacity');
 
-        // UI Top Bar Dropdown Trigger Logic
+        // UI Element Connectors
         const menuBtn = document.getElementById('menuBtn');
         const menuDropdown = document.getElementById('menuDropdown');
-
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menuDropdown.classList.toggle('show');
-        });
-
-        window.addEventListener('click', () => {
-            if (menuDropdown.classList.contains('show')) {
-                menuDropdown.classList.remove('show');
-            }
-        });
+        const colorBtn = document.getElementById('colorBtn');
+        const colorPanel = document.getElementById('colorPanel');
+        const closeColorBtn = document.getElementById('closeColorBtn');
+        const hexInput = document.getElementById('hexInput');
+        const paletteGrid = document.getElementById('paletteGrid');
+        const colorWheel = document.getElementById('colorWheel');
+        const wheelCtx = colorWheel.getContext('2d');
 
         // State variables for Viewport manipulation (Pan, Zoom, Rotate)
         let scale = 1;
@@ -401,7 +510,10 @@
         let drawing = false;
         let currentBrushSize = 10;
         let currentOpacity = 1.0;
-        let activeColor = '#000000'; // Initial active color value defaults to black
+        let activeColor = '#000000';
+        
+        // 20 Palette slots initialization history data track
+        let recentColors = Array(20).fill('#ffffff');
 
         // Connect functional brush sliders directly to draw logic state
         brushSizeSlider.addEventListener('input', (e) => {
@@ -411,6 +523,122 @@
         brushOpacitySlider.addEventListener('input', (e) => {
             currentOpacity = parseInt(e.target.value) / 100;
         });
+
+        // Topbar UI Toggle Menus Logic
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            colorPanel.classList.remove('show');
+            menuDropdown.classList.toggle('show');
+        });
+
+        colorBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.remove('show');
+            colorPanel.classList.toggle('show');
+            if (colorPanel.classList.contains('show')) drawColorWheel();
+        });
+
+        closeColorBtn.addEventListener('click', () => {
+            colorPanel.classList.remove('show');
+        });
+
+        // Global dismiss handler windows triggers
+        window.addEventListener('click', (e) => {
+            if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
+                menuDropdown.classList.remove('show');
+            }
+            if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
+                colorPanel.classList.remove('show');
+            }
+        });
+
+        // Generate standard color wheel image layout inside target sub-canvas
+        function drawColorWheel() {
+            const width = colorWheel.width;
+            const height = colorWheel.height;
+            const cx = width / 2;
+            const cy = height / 2;
+            const r = width / 2;
+
+            wheelCtx.clearRect(0,0,width,height);
+
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const dx = x - cx;
+                    const dy = y - cy;
+                    const d = Math.hypot(dx, dy);
+
+                    if (d <= r) {
+                        const angle = Math.atan2(dy, dx) + Math.PI; // 0 to 2PI
+                        const hue = (angle * 180) / Math.PI;
+                        const sat = d / r;
+                        wheelCtx.fillStyle = `hsl(${hue}, ${sat * 100}%, 50%)`;
+                        wheelCtx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+        }
+
+        // Color wheel click interaction handler code tracking
+        colorWheel.addEventListener('pointerdown', selectWheelColor);
+        colorWheel.addEventListener('pointermove', (e) => {
+            if (e.buttons === 1) selectWheelColor(e);
+        });
+
+        function selectWheelColor(e) {
+            const rect = colorWheel.getBoundingClientRect();
+            const x = Math.floor(e.clientX - rect.left);
+            const y = Math.floor(e.clientY - rect.top);
+
+            if(x >= 0 && x < colorWheel.width && y >= 0 && y < colorWheel.height) {
+                const imgData = wheelCtx.getImageData(x, y, 1, 1).data;
+                if (imgData[3] > 0) { // If pixel isn't transparent edge
+                    const hex = "#" + ((1 << 24) + (imgData[0] << 16) + (imgData[1] << 8) + imgData[2]).toString(16).slice(1);
+                    updateActiveColor(hex);
+                }
+            }
+        }
+
+        // Hex manual string input data field tracker
+        hexInput.addEventListener('change', (e) => {
+            let val = e.target.value;
+            if(!val.startsWith('#')) val = '#' + val;
+            // Validate hex regex sequence check matching specifications
+            if(/^#[0-9A-F]{6}$/i.test(val)) {
+                updateActiveColor(val);
+            } else {
+                hexInput.value = activeColor;
+            }
+        });
+
+        function updateActiveColor(hex) {
+            activeColor = hex;
+            hexInput.value = hex;
+            
+            // Add to recents array tracker list if it isn't already the most recent slot item
+            if (recentColors[0] !== hex) {
+                recentColors.unshift(hex);
+                recentColors.pop(); // Maintain locked 20 length items limit count boundary
+                renderPalette();
+            }
+        }
+
+        function renderPalette() {
+            paletteGrid.innerHTML = '';
+            recentColors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.addEventListener('click', () => {
+                    activeColor = color;
+                    hexInput.value = color;
+                });
+                paletteGrid.appendChild(swatch);
+            });
+        }
+
+        // Initialize grid render tracking slots immediately
+        renderPalette();
 
         // Track pointer states for multi-touch gestures
         let activePointers = [];
@@ -498,22 +726,17 @@
 
         /* DRAWING ENGINE LOGIC */
         function attachDrawingListeners() {
-            // Drawing strokes track pointer events directed onto canvas specifically
             canvas.addEventListener('pointerdown', startDrawing);
             canvas.addEventListener('pointermove', drawStroke);
             window.addEventListener('pointerup', stopDrawing);
         }
 
         function getCanvasCoordinates(e) {
-            // Map window client space onto active local coordinates of transformed canvas elements
             const rect = transformContainer.getBoundingClientRect();
-            
-            // Calculate offsets with rotation matrix handling
             const rad = (-rotation * Math.PI) / 180;
             const cx = rect.left + rect.width / 2;
             const cy = rect.top + rect.height / 2;
             
-            // Convert coordinate orientations relative to container anchor points
             const xRot = (e.clientX - cx) * Math.cos(rad) - (e.clientY - cy) * Math.sin(rad);
             const yRot = (e.clientX - cx) * Math.sin(rad) + (e.clientY - cy) * Math.cos(rad);
             
@@ -524,11 +747,11 @@
         }
 
         function startDrawing(e) {
-            if (activePointers.length > 0) return; // Block draw engine if global viewport gestures are active
+            if (activePointers.length > 0) return; 
             drawing = true;
             const coords = getCanvasCoordinates(e);
             ctx.beginPath();
-            ctx.moveTo(coords.x, coords.coords);
+            ctx.moveTo(coords.x, coords.y);
             drawStroke(e);
         }
 
@@ -540,7 +763,6 @@
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             
-            // Convert Hex code color setting combined alongside active alpha opacity slider
             ctx.strokeStyle = activeColor;
             ctx.globalAlpha = currentOpacity;
 
@@ -558,18 +780,9 @@
         }
 
         /* DESKTOP MOUSE / MOBILE GESTURE ENGINE FOR PAN, ZOOM, ROTATE */
-        function getDistance(p1, p2) {
-            return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
-        }
-
-        function getAngle(p1, p2) {
-            return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
-        }
-
         workspace.addEventListener('pointerdown', (e) => {
-            // Stop viewport manipulation movements if directly interacting with top-bar or slider components
-            if (e.target.closest('.top-bar') || e.target.closest('.left-controls')) return;
-            // Allow pointer paths focused directly on canvas to default to drawing strokes
+            // Block viewport changes if directly interacting with topbar panels or left sliders
+            if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
             if (e.target === canvas && !drawing && activePointers.length === 0) return;
 
             activePointers.push(e);
@@ -580,7 +793,7 @@
                 startPanY = e.clientY - panY;
             } else if (activePointers.length === 2) {
                 isPanning = false;
-                drawing = false; // Kill any rogue singular lines if a multi-touch swipe comes out
+                drawing = false; 
                 initialTouchDist = getDistance(activePointers[0], activePointers[1]);
                 initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
                 initialScale = scale;
@@ -625,9 +838,8 @@
         workspace.addEventListener('pointerup', handlePointerUp);
         workspace.addEventListener('pointercancel', handlePointerUp);
 
-        // Desktop Mouse Wheel Zoom Support (Stabilized)
         workspace.addEventListener('wheel', (e) => {
-            if (e.target.closest('.top-bar') || e.target.closest('.left-controls')) return;
+            if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
             e.preventDefault();
             const zoomFactor = 1.1;
             let targetScale = scale;
