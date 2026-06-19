@@ -84,6 +84,11 @@ let alphaScratchCtx = alphaScratchCanvas.getContext('2d');
 let alphaBackupCanvas = document.createElement('canvas');
 let alphaBackupCtx = alphaBackupCanvas.getContext('2d');
 
+// Color Picker State Engine
+let currentHue = 0;
+let currentSat = 0;
+let currentLight = 0;
+
 // iOS Double-Tap System Zoom Prevention Engine
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
@@ -93,6 +98,46 @@ document.addEventListener('touchend', (e) => {
     }
     lastTouchEnd = now;
 }, { passive: false });
+
+// Dynamically create or update brush size preview element
+let sizePreviewContainer = document.getElementById('sizePreviewContainer');
+if (!sizePreviewContainer) {
+    sizePreviewContainer = document.createElement('div');
+    sizePreviewContainer.id = 'sizePreviewContainer';
+    sizePreviewContainer.style.position = 'absolute';
+    sizePreviewContainer.style.left = '70px';
+    sizePreviewContainer.style.bottom = '180px';
+    sizePreviewContainer.style.width = '100px';
+    sizePreviewContainer.style.height = '100px';
+    sizePreviewContainer.style.display = 'flex';
+    sizePreviewContainer.style.alignItems = 'center';
+    sizePreviewContainer.style.justifyContent = 'center';
+    sizePreviewContainer.style.background = 'rgba(0,0,0,0.1)';
+    sizePreviewContainer.style.borderRadius = '8px';
+    sizePreviewContainer.style.pointerEvents = 'none';
+    sizePreviewContainer.style.zIndex = '100';
+    document.querySelector('.left-controls').appendChild(sizePreviewContainer);
+}
+
+function updateBrushSizePreview() {
+    sizePreviewContainer.innerHTML = '';
+    const circle = document.createElement('div');
+    circle.style.width = currentBrushSize + 'px';
+    circle.style.height = currentBrushSize + 'px';
+    circle.style.maxWidth = '90px';
+    circle.style.maxHeight = '90px';
+    circle.style.borderRadius = '50%';
+    circle.style.background = currentTool === 'eraser' ? 'rgba(255,255,255,0.8)' : activeColor;
+    circle.style.border = '2px solid #fff';
+    circle.style.boxShadow = '0 0 4px rgba(0,0,0,0.5)';
+    sizePreviewContainer.appendChild(circle);
+}
+
+// Update DOM Label text from OPAC to OPACITY safely
+const opacLabel = document.querySelector('label[for="opacSlider"]') || Array.from(document.querySelectorAll('span, label')).find(el => el.textContent.includes('OPAC'));
+if (opacLabel) {
+    opacLabel.textContent = 'OPACITY';
+}
 
 // Custom Sliders Engine
 function setupCustomSlider(container, fill, handle, bubble, min, max, initialValue, onChange) {
@@ -143,6 +188,7 @@ function setupCustomSlider(container, fill, handle, bubble, min, max, initialVal
 
 setupCustomSlider(sizeSlider, sizeTrackFill, sizeHandle, sizeBubble, 1, 100, 10, (val) => {
     currentBrushSize = Math.round(val);
+    updateBrushSizePreview();
 });
 
 setupCustomSlider(opacSlider, opacTrackFill, opacHandle, opacBubble, 0, 100, 100, (val) => {
@@ -154,12 +200,14 @@ brushBtn.addEventListener('click', () => {
     currentTool = 'brush';
     brushBtn.classList.add('active');
     eraserBtn.classList.remove('active');
+    updateBrushSizePreview();
 });
 
 eraserBtn.addEventListener('click', () => {
     currentTool = 'eraser';
     eraserBtn.classList.add('active');
     brushBtn.classList.remove('active');
+    updateBrushSizePreview();
 });
 
 // Sidebar & Dropdown Trigger Logic
@@ -636,6 +684,7 @@ function initCanvas(width, height) {
     
     centerCanvas();
     attachDrawingListeners();
+    updateBrushSizePreview();
     
     undoStack = [];
     redoStack = [];
@@ -669,30 +718,71 @@ fileInput.addEventListener('change', (e) => {
     reader.readAsDataURL(file);
 });
 
-// Color Wheel UI
+// Advanced Color Wheel UI Engine: Hue Ring + Saturation/Lightness Square
 function drawColorWheel() {
     const width = colorWheel.width;
     const height = colorWheel.height;
     const cx = width / 2;
     const cy = height / 2;
-    const r = width / 2;
+    const outerRadius = width / 2 - 2;
+    const innerRadius = outerRadius - 20;
+    const squareSize = Math.floor(innerRadius * Math.sqrt(2)) - 4;
 
-    wheelCtx.clearRect(0,0,width,height);
+    wheelCtx.clearRect(0, 0, width, height);
+
+    // 1. Draw Hue Ring
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
             const dx = x - cx;
             const dy = y - cy;
             const d = Math.hypot(dx, dy);
 
-            if (d <= r) {
+            if (d >= innerRadius && d <= outerRadius) {
                 const angle = Math.atan2(dy, dx) + Math.PI;
                 const hue = (angle * 180) / Math.PI;
-                const sat = d / r;
-                wheelCtx.fillStyle = `hsl(${hue}, ${sat * 100}%, 50%)`;
+                wheelCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
                 wheelCtx.fillRect(x, y, 1, 1);
             }
         }
     }
+
+    // 2. Draw Internal Saturation / Lightness Square
+    const sx = cx - squareSize / 2;
+    const sy = cy - squareSize / 2;
+    for (let y = 0; y < squareSize; y++) {
+        for (let x = 0; x < squareSize; x++) {
+            const sat = (x / squareSize) * 100;
+            const light = (1 - (y / squareSize)) * 100;
+            wheelCtx.fillStyle = `hsl(${currentHue}, ${sat}%, ${light}%)`;
+            wheelCtx.fillRect(sx + x, sy + y, 1, 1);
+        }
+    }
+
+    // 3. Draw Ring Cursor
+    const ringAngle = (currentHue - 180) * Math.PI / 180;
+    const rx = cx + ((innerRadius + outerRadius) / 2) * Math.cos(ringAngle);
+    const ry = cy + ((innerRadius + outerRadius) / 2) * Math.sin(ringAngle);
+    drawCursorIndicator(rx, ry);
+
+    // 4. Draw Square Cursor
+    const cursorX = sx + (currentSat / 100) * squareSize;
+    const cursorY = sy + (1 - (currentLight / 100)) * squareSize;
+    drawCursorIndicator(cursorX, cursorY);
+}
+
+function drawCursorIndicator(x, y) {
+    wheelCtx.save();
+    wheelCtx.beginPath();
+    wheelCtx.arc(x, y, 5, 0, Math.PI * 2);
+    wheelCtx.strokeStyle = '#ffffff';
+    wheelCtx.lineWidth = 2;
+    wheelCtx.stroke();
+    wheelCtx.beginPath();
+    wheelCtx.arc(x, y, 6, 0, Math.PI * 2);
+    wheelCtx.strokeStyle = '#000000';
+    wheelCtx.lineWidth = 1;
+    wheelCtx.stroke();
+    wheelCtx.restore();
 }
 
 colorWheel.addEventListener('pointerdown', selectWheelColor);
@@ -705,14 +795,73 @@ function selectWheelColor(e) {
     const x = Math.floor(e.clientX - rect.left);
     const y = Math.floor(e.clientY - rect.top);
 
-    if(x >= 0 && x < colorWheel.width && y >= 0 && y < colorWheel.height) {
-        const imgData = wheelCtx.getImageData(x, y, 1, 1).data;
-        if (imgData[3] > 0) {
-            const hex = "#" + ((1 << 24) + (imgData[0] << 16) + (imgData[1] << 8) + imgData[2]).toString(16).slice(1);
-            activeColor = hex;
-            hexInput.value = hex;
-        }
+    const cx = colorWheel.width / 2;
+    const cy = colorWheel.height / 2;
+    const outerRadius = colorWheel.width / 2 - 2;
+    const innerRadius = outerRadius - 20;
+    const squareSize = Math.floor(innerRadius * Math.sqrt(2)) - 4;
+    const sx = cx - squareSize / 2;
+    const sy = cy - squareSize / 2;
+
+    const dx = x - cx;
+    const dy = y - cy;
+    const d = Math.hypot(dx, dy);
+
+    if (d >= innerRadius && d <= outerRadius) {
+        // Intersected Hue Ring
+        const angle = Math.atan2(dy, dx) + Math.PI;
+        currentHue = Math.round((angle * 180) / Math.PI);
+        updateHexFromHsl();
+    } else if (x >= sx && x <= sx + squareSize && y >= sy && y <= sy + squareSize) {
+        // Intersected Saturation/Lightness Square
+        currentSat = Math.round(((x - sx) / squareSize) * 100);
+        currentLight = Math.round((1 - ((y - sy) / squareSize)) * 100);
+        updateHexFromHsl();
     }
+}
+
+function updateHexFromHsl() {
+    const dummy = document.createElement('div');
+    dummy.style.color = `hsl(${currentHue}, ${currentSat}%, ${currentLight}%)`;
+    document.body.appendChild(dummy);
+    const rgb = window.getComputedStyle(dummy).color;
+    document.body.removeChild(dummy);
+
+    const matches = rgb.match(/\d+/g);
+    if (matches) {
+        const r = parseInt(matches[0]), g = parseInt(matches[1]), b = parseInt(matches[2]);
+        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        activeColor = hex;
+        hexInput.value = hex;
+        drawColorWheel();
+        updateBrushSizePreview();
+    }
+}
+
+function updateHslFromHex(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h, s, l = (max + min) / 2;
+
+    if (max === min) {
+        h = s = 0; 
+    } else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    currentHue = Math.round(h * 360);
+    currentSat = Math.round(s * 100);
+    currentLight = Math.round(l * 100);
+    drawColorWheel();
 }
 
 hexInput.addEventListener('change', (e) => {
@@ -720,6 +869,8 @@ hexInput.addEventListener('change', (e) => {
     if(!val.startsWith('#')) val = '#' + val;
     if(/^#[0-9A-F]{6}$/i.test(val)) {
         activeColor = val;
+        updateHslFromHex(val);
+        updateBrushSizePreview();
     } else {
         hexInput.value = activeColor;
     }
@@ -742,6 +893,8 @@ function renderPalette() {
         swatch.addEventListener('click', () => {
             activeColor = color;
             hexInput.value = color;
+            updateHslFromHex(color);
+            updateBrushSizePreview();
         });
         paletteGrid.appendChild(swatch);
     });
@@ -787,11 +940,11 @@ function startDrawing(e) {
     lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // 1. Snapshot the alpha mask boundary properties explicitly
+        // 1. Snapshot alpha mask shape parameters safely
         alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
 
-        // 2. Clear out scratch pad buffer and clone the full artwork layout
+        // 2. Load the base line art into scratch active canvas environment
         alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
     }
@@ -815,37 +968,41 @@ function drawStroke(e) {
         alphaScratchCtx.lineJoin = 'round';
         alphaScratchCtx.globalAlpha = currentOpacity;
         
-        // FIXED Alpha Lock Eraser Mode Implementation
+        // FIXED Alpha Lock Eraser Implementation
         if (currentTool === 'eraser') {
-            // Use the baseline backup canvas layout pattern as a paint source texture
-            alphaScratchCtx.globalCompositeOperation = 'source-over';
+            // First drop a clip path cutting the line out entirely 
+            alphaScratchCtx.globalCompositeOperation = 'destination-out';
+            alphaScratchCtx.strokeStyle = 'rgba(0,0,0,1.0)';
+            alphaScratchCtx.beginPath();
+            alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
+            alphaScratchCtx.lineTo(coords.x, coords.y);
+            alphaScratchCtx.stroke();
             
-            // Generate a pattern mask linked directly to original layer pixels
-            const pattern = alphaScratchCtx.createPattern(alphaBackupCanvas, 'no-repeat');
-            alphaScratchCtx.strokeStyle = pattern;
+            // Instantly repair the baseline geometry by filling missing values underneath from backup
+            alphaScratchCtx.globalCompositeOperation = 'destination-over';
+            alphaScratchCtx.drawImage(alphaBackupCanvas, 0, 0);
         } else {
-            // Standard brush stroke path logic
+            // Standard brush stroke logic pathing
             alphaScratchCtx.globalCompositeOperation = 'source-over';
             alphaScratchCtx.strokeStyle = activeColor;
+            alphaScratchCtx.beginPath();
+            alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
+            alphaScratchCtx.lineTo(coords.x, coords.y);
+            alphaScratchCtx.stroke();
         }
-        
-        alphaScratchCtx.beginPath();
-        alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
-        alphaScratchCtx.lineTo(coords.x, coords.y);
-        alphaScratchCtx.stroke();
         alphaScratchCtx.restore();
 
-        // Push combined scratch results back to primary layer canvas
+        // Overwrite active layer data space
         activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
         activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
 
-        // Clip anything that went over the lines using the alpha lock bounding shape copy
+        // Re-align layer edge masks strictly using destination-in bounding metrics
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'destination-in';
         activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
         activeLayer.ctx.restore();
     } else {
-        // Normal Drawing Flow
+        // Standard Drawing Routine
         activeLayer.ctx.save();
         activeLayer.ctx.lineWidth = currentBrushSize;
         activeLayer.ctx.lineCap = 'round';
