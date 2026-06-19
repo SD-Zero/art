@@ -20,6 +20,8 @@
             position: fixed;
             width: 100%;
             height: 100%;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         /* Screen Toggling */
@@ -35,7 +37,7 @@
             text-align: center;
             width: 350px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-            z-index: 10;
+            z-index: 100;
         }
 
         /* Logo Text Placeholder */
@@ -116,7 +118,7 @@
             width: 100vw;
             height: 100vh;
             background-color: #1e1e1e;
-            touch-action: none; /* Prevents default browser scrolling/zooming */
+            touch-action: none;
         }
 
         /* Viewport tracking container for PAN/ZOOM/ROTATE transforms */
@@ -131,6 +133,141 @@
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
             border: 1px solid #2d2d2d;
             display: block;
+        }
+
+        /* --- NEW TOP BAR UI --- */
+        .top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 45px;
+            background-color: #121212;
+            border-bottom: 1px solid #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 15px;
+            box-sizing: border-box;
+            z-index: 50;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #cccccc;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 12px;
+            margin-right: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .icon-btn:hover {
+            background-color: #222222;
+            color: #ffffff;
+        }
+
+        /* Dropdown Menu Styling */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            top: 45px;
+            left: 0;
+            background-color: #1c1c1c;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
+            border: 1px solid #2a2a2a;
+            border-radius: 4px;
+            z-index: 60;
+        }
+
+        .dropdown-content a {
+            color: #e0e0e0;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+        }
+
+        .dropdown-content a:hover {
+            background-color: #2a2a2a;
+            color: #ffffff;
+        }
+
+        .show {
+            display: block !important;
+        }
+
+        /* --- NEW LEFT SIDE SLIDERS UI --- */
+        .left-controls {
+            position: absolute;
+            left: 20px;
+            top: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+            z-index: 50;
+            background: rgba(18, 18, 18, 0.4);
+            padding: 15px 10px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .slider-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .slider-label {
+            font-size: 11px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Turning standard sliders vertical */
+        .vertical-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 6px;
+            height: 150px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+            writing-mode: bt-lr; /* IE support */
+            transform: rotate(-180deg); /* Flip it so up increases value */
+            direction: rtl; /* Standard orientation fix for slider track direction */
+        }
+
+        /* Slider Thumb Styling */
+        .vertical-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .vertical-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            border: none;
         }
     </style>
 </head>
@@ -161,6 +298,33 @@
     </div>
 
     <div id="workspace" class="workspace hidden">
+        
+        <div class="top-bar">
+            <div class="dropdown">
+                <button id="menuBtn" class="icon-btn">☰ Menu</button>
+                <div id="menuDropdown" class="dropdown-content">
+                    <a href="#" id="placeholder1">Placeholder Opt 1</a>
+                    <a href="#" id="placeholder2">Placeholder Opt 2</a>
+                    <a href="#" id="placeholder3">Placeholder Opt 3</a>
+                </div>
+            </div>
+            <button class="icon-btn" id="colorBtn">🎨 Color</button>
+            <button class="icon-btn" id="brushBtn">🖌️ Brush</button>
+            <button class="icon-btn" id="transformBtn">⤢ Transform</button>
+            <button class="icon-btn" id="lassoBtn">⬡ Lasso</button>
+        </div>
+
+        <div class="left-controls">
+            <div class="slider-wrapper">
+                <span class="slider-label">Size</span>
+                <input type="range" id="brushSize" class="vertical-slider" min="1" max="100" value="10">
+            </div>
+            <div class="slider-wrapper">
+                <span class="slider-label">Opac</span>
+                <input type="range" id="brushOpacity" class="vertical-slider" min="0" max="100" value="100">
+            </div>
+        </div>
+
         <div id="transformContainer" class="transform-container">
             <canvas id="paintCanvas"></canvas>
         </div>
@@ -180,6 +344,22 @@
         const transformContainer = document.getElementById('transformContainer');
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
+
+        // UI Top Bar Dropdown Trigger Logic
+        const menuBtn = document.getElementById('menuBtn');
+        const menuDropdown = document.getElementById('menuDropdown');
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menuDropdown.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside of it
+        window.addEventListener('click', () => {
+            if (menuDropdown.classList.contains('show')) {
+                menuDropdown.classList.remove('show');
+            }
+        });
 
         // State variables for Viewport manipulation (Pan, Zoom, Rotate)
         let scale = 1;
@@ -283,6 +463,9 @@
         }
 
         workspace.addEventListener('pointerdown', (e) => {
+            // Prevent workspace panning interactions if clicking top-bar or slider controls
+            if (e.target.closest('.top-bar') || e.target.closest('.left-controls')) return;
+
             activePointers.push(e);
             
             if (activePointers.length === 1) {
@@ -314,7 +497,6 @@
                 const currentAngle = getAngle(activePointers[0], activePointers[1]);
 
                 let targetScale = initialScale * (currentDist / initialTouchDist);
-                // Clamp zoom scale factor safely between 0.1x and 10x size limits
                 scale = Math.max(0.1, Math.min(targetScale, 10));
                 
                 rotation = initialRotation + (currentAngle - initialTouchAngle);
@@ -338,6 +520,7 @@
 
         // Desktop Mouse Wheel Zoom Support (Stabilized)
         workspace.addEventListener('wheel', (e) => {
+            if (e.target.closest('.top-bar') || e.target.closest('.left-controls')) return;
             e.preventDefault();
             const zoomFactor = 1.1;
             let targetScale = scale;
