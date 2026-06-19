@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My Art Program</title>
     <style>
-        /* Base page alignment */
         body {
             margin: 0;
             padding: 0;
@@ -24,12 +23,10 @@
             -webkit-user-select: none;
         }
 
-        /* Screen Toggling */
         .hidden {
             display: none !important;
         }
 
-        /* Start Menu Box */
         .menu-container {
             background-color: #262626;
             padding: 30px;
@@ -40,7 +37,6 @@
             z-index: 200;
         }
 
-        /* Logo Text Placeholder */
         .logo-text {
             font-size: 28px;
             font-weight: bold;
@@ -49,7 +45,6 @@
             color: #007acc;
         }
 
-        /* Size Inputs Layout */
         .input-group {
             margin: 15px 0;
             display: flex;
@@ -67,7 +62,6 @@
             border-radius: 4px;
         }
 
-        /* Proportional Preview Box */
         .preview-box {
             margin: 20px auto;
             border: 1px solid #ffffff;
@@ -76,7 +70,6 @@
             max-height: 150px;
         }
 
-        /* Action Buttons */
         .confirm-btn {
             background-color: #007acc;
             color: white;
@@ -110,7 +103,6 @@
             display: none;
         }
 
-        /* ART WORKSPACE */
         .workspace {
             position: absolute;
             top: 0;
@@ -121,7 +113,6 @@
             touch-action: none;
         }
 
-        /* Viewport container for transforms */
         .transform-container {
             position: absolute;
             transform-origin: center center;
@@ -165,9 +156,14 @@
             justify-content: center;
         }
 
-        .icon-btn:hover, .icon-btn.active {
+        .icon-btn:hover:not(:disabled) {
             background-color: #222222;
             color: #ffffff;
+        }
+
+        .icon-btn:disabled {
+            color: #444444;
+            cursor: not-allowed;
         }
 
         .icon-btn svg {
@@ -176,7 +172,14 @@
             fill: currentColor;
         }
 
-        /* Dropdown Menu Styling */
+        .divider {
+            width: 1px;
+            height: 20px;
+            background-color: #2a2a2a;
+            margin: 0 10px 0 5px;
+        }
+
+        /* Dropdown Menu */
         .dropdown {
             position: relative;
             display: inline-block;
@@ -208,7 +211,7 @@
             color: #ffffff;
         }
 
-        /* --- NEW COLOR DROPDOWN PANEL UI --- */
+        /* Color Panel */
         .color-panel {
             display: none;
             position: absolute;
@@ -298,7 +301,7 @@
 
         .color-swatch {
             width: 100%;
-            padding-top: 100%; /* Keeps swatches perfectly square */
+            padding-top: 100%;
             border-radius: 4px;
             cursor: pointer;
             border: 1px solid rgba(255,255,255,0.05);
@@ -437,6 +440,15 @@
             <button class="icon-btn" id="lassoBtn" title="Lasso">
                 <svg viewBox="0 0 24 24"><path d="M18.06 13.04c.33-.8.44-1.67.31-2.54A5.942 5.942 0 0 0 13 5.06c-.87-.13-1.74-.02-2.54.31L4.63 2.13 3.37 3.63l5.59 3.19C8.36 7.82 8 8.87 8 10c0 2.76 2.24 5 5 5 .13 0 .26-.01.39-.02l2.37 4.15c-.49.19-.88.56-1.08 1.05-.4.93-.05 2.01.81 2.5a1.99 1.99 0 0 0 2.69-.81c.42-.93.02-2.02-.85-2.5l-2.31-4.04c1.17-.41 2.15-1.21 2.84-2.29l2.76 1.58 1.01-1.73-2.58-1.48zm-5.06.46c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>
             </button>
+
+            <div class="divider"></div>
+
+            <button class="icon-btn" id="undoBtn" title="Undo" disabled>
+                <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+            </button>
+            <button class="icon-btn" id="redoBtn" title="Redo" disabled>
+                <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.06-5.5 7.6-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+            </button>
         </div>
 
         <div id="colorPanel" class="color-panel">
@@ -471,7 +483,6 @@
     </div>
 
     <script>
-        // Menu Elements
         const startMenu = document.getElementById('startMenu');
         const canvasWidthInput = document.getElementById('canvasWidth');
         const canvasHeightInput = document.getElementById('canvasHeight');
@@ -479,17 +490,14 @@
         const confirmBtn = document.getElementById('confirmBtn');
         const fileInput = document.getElementById('fileInput');
 
-        // Workspace Elements
         const workspace = document.getElementById('workspace');
         const transformContainer = document.getElementById('transformContainer');
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Brush Settings Sliders
         const brushSizeSlider = document.getElementById('brushSize');
         const brushOpacitySlider = document.getElementById('brushOpacity');
 
-        // UI Element Connectors
         const menuBtn = document.getElementById('menuBtn');
         const menuDropdown = document.getElementById('menuDropdown');
         const colorBtn = document.getElementById('colorBtn');
@@ -500,31 +508,31 @@
         const colorWheel = document.getElementById('colorWheel');
         const wheelCtx = colorWheel.getContext('2d');
 
-        // State variables for Viewport manipulation (Pan, Zoom, Rotate)
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+
+        // History Management Stack
+        let undoStack = [];
+        let redoStack = [];
+        const MAX_HISTORY = 25;
+
+        // Viewport Coordinates (Pan, Zoom, Rotate)
         let scale = 1;
         let panX = 0;
         let panY = 0;
         let rotation = 0; 
 
-        // State variables for Active Drawing Engine
+        // Draw State Tracker Variables
         let drawing = false;
         let currentBrushSize = 10;
         let currentOpacity = 1.0;
         let activeColor = '#000000';
-        
-        // 20 Palette slots initialization history data track
+        let provisionalColor = '#000000'; // Changes on wheel, but doesn't hit recent palette history yet
         let recentColors = Array(20).fill('#ffffff');
 
-        // Connect functional brush sliders directly to draw logic state
-        brushSizeSlider.addEventListener('input', (e) => {
-            currentBrushSize = parseInt(e.target.value);
-        });
+        brushSizeSlider.addEventListener('input', (e) => currentBrushSize = parseInt(e.target.value));
+        brushOpacitySlider.addEventListener('input', (e) => currentOpacity = parseInt(e.target.value) / 100);
 
-        brushOpacitySlider.addEventListener('input', (e) => {
-            currentOpacity = parseInt(e.target.value) / 100;
-        });
-
-        // Topbar UI Toggle Menus Logic
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             colorPanel.classList.remove('show');
@@ -538,87 +546,60 @@
             if (colorPanel.classList.contains('show')) drawColorWheel();
         });
 
-        closeColorBtn.addEventListener('click', () => {
-            colorPanel.classList.remove('show');
-        });
+        closeColorBtn.addEventListener('click', () => colorPanel.classList.remove('show'));
 
-        // Global dismiss handler windows triggers
         window.addEventListener('click', (e) => {
-            if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
-                menuDropdown.classList.remove('show');
-            }
-            if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
-                colorPanel.classList.remove('show');
-            }
+            if (!menuDropdown.contains(e.target) && e.target !== menuBtn) menuDropdown.classList.remove('show');
+            if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) colorPanel.classList.remove('show');
         });
 
-        // Generate standard color wheel image layout inside target sub-canvas
         function drawColorWheel() {
-            const width = colorWheel.width;
-            const height = colorWheel.height;
-            const cx = width / 2;
-            const cy = height / 2;
-            const r = width / 2;
-
+            const width = colorWheel.width, height = colorWheel.height;
+            const cx = width / 2, cy = height / 2, r = width / 2;
             wheelCtx.clearRect(0,0,width,height);
-
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
-                    const dx = x - cx;
-                    const dy = y - cy;
-                    const d = Math.hypot(dx, dy);
-
+                    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
                     if (d <= r) {
-                        const angle = Math.atan2(dy, dx) + Math.PI; // 0 to 2PI
+                        const angle = Math.atan2(dy, dx) + Math.PI;
                         const hue = (angle * 180) / Math.PI;
-                        const sat = d / r;
-                        wheelCtx.fillStyle = `hsl(${hue}, ${sat * 100}%, 50%)`;
+                        wheelCtx.fillStyle = `hsl(${hue}, ${(d / r) * 100}%, 50%)`;
                         wheelCtx.fillRect(x, y, 1, 1);
                     }
                 }
             }
         }
 
-        // Color wheel click interaction handler code tracking
         colorWheel.addEventListener('pointerdown', selectWheelColor);
-        colorWheel.addEventListener('pointermove', (e) => {
-            if (e.buttons === 1) selectWheelColor(e);
-        });
+        colorWheel.addEventListener('pointermove', (e) => { if (e.buttons === 1) selectWheelColor(e); });
 
         function selectWheelColor(e) {
             const rect = colorWheel.getBoundingClientRect();
-            const x = Math.floor(e.clientX - rect.left);
-            const y = Math.floor(e.clientY - rect.top);
-
+            const x = Math.floor(e.clientX - rect.left), y = Math.floor(e.clientY - rect.top);
             if(x >= 0 && x < colorWheel.width && y >= 0 && y < colorWheel.height) {
                 const imgData = wheelCtx.getImageData(x, y, 1, 1).data;
-                if (imgData[3] > 0) { // If pixel isn't transparent edge
+                if (imgData[3] > 0) {
                     const hex = "#" + ((1 << 24) + (imgData[0] << 16) + (imgData[1] << 8) + imgData[2]).toString(16).slice(1);
-                    updateActiveColor(hex);
+                    provisionalColor = hex;
+                    hexInput.value = hex;
                 }
             }
         }
 
-        // Hex manual string input data field tracker
         hexInput.addEventListener('change', (e) => {
             let val = e.target.value;
             if(!val.startsWith('#')) val = '#' + val;
-            // Validate hex regex sequence check matching specifications
             if(/^#[0-9A-F]{6}$/i.test(val)) {
-                updateActiveColor(val);
+                provisionalColor = val;
             } else {
-                hexInput.value = activeColor;
+                hexInput.value = provisionalColor;
             }
         });
 
-        function updateActiveColor(hex) {
-            activeColor = hex;
-            hexInput.value = hex;
-            
-            // Add to recents array tracker list if it isn't already the most recent slot item
+        function pushToRecentColors(hex) {
             if (recentColors[0] !== hex) {
                 recentColors.unshift(hex);
-                recentColors.pop(); // Maintain locked 20 length items limit count boundary
+                recentColors.pop();
                 renderPalette();
             }
         }
@@ -630,31 +611,54 @@
                 swatch.className = 'color-swatch';
                 swatch.style.backgroundColor = color;
                 swatch.addEventListener('click', () => {
+                    provisionalColor = color;
                     activeColor = color;
                     hexInput.value = color;
                 });
                 paletteGrid.appendChild(swatch);
             });
         }
-
-        // Initialize grid render tracking slots immediately
         renderPalette();
 
-        // Track pointer states for multi-touch gestures
-        let activePointers = [];
-        let startPanX = 0, startPanY = 0;
-        let initialTouchDist = 0;
-        let initialTouchAngle = 0;
-        let initialScale = 1;
-        let initialRotation = 0;
-        let isPanning = false;
+        function saveState() {
+            if (undoStack.length >= MAX_HISTORY) undoStack.shift();
+            undoStack.push(canvas.toDataURL());
+            redoStack = []; // Clear redo stack on new action
+            updateHistoryButtons();
+        }
 
-        // Function to update the preview box proportions
+        function updateHistoryButtons() {
+            undoBtn.disabled = undoStack.length === 0;
+            redoBtn.disabled = redoStack.length === 0;
+        }
+
+        undoBtn.addEventListener('click', () => {
+            if (undoStack.length === 0) return;
+            redoStack.push(canvas.toDataURL());
+            let previousState = undoStack.pop();
+            restoreState(previousState);
+        });
+
+        redoBtn.addEventListener('click', () => {
+            if (redoStack.length === 0) return;
+            undoStack.push(canvas.toDataURL());
+            let nextState = redoStack.pop();
+            restoreState(nextState);
+        });
+
+        function restoreState(dataURL) {
+            let img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                updateHistoryButtons();
+            };
+            img.src = dataURL;
+        }
+
         function updatePreview() {
-            const w = parseInt(canvasWidthInput.value) || 1;
-            const h = parseInt(canvasHeightInput.value) || 1;
+            const w = parseInt(canvasWidthInput.value) || 1, h = parseInt(canvasHeightInput.value) || 1;
             const maxDisplaySize = 150;
-
             if (w >= h) {
                 previewBox.style.width = maxDisplaySize + 'px';
                 previewBox.style.height = (h / w) * maxDisplaySize + 'px';
@@ -663,17 +667,14 @@
                 previewBox.style.width = (w / h) * maxDisplaySize + 'px';
             }
         }
-
         canvasWidthInput.addEventListener('input', updatePreview);
         canvasHeightInput.addEventListener('input', updatePreview);
         updatePreview();
 
-        // Update CSS Transforms safely
         function applyTransforms() {
             transformContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale}) rotate(${rotation}deg)`;
         }
 
-        // Center the canvas precisely in the middle of the workspace screen
         function centerCanvas() {
             panX = (window.innerWidth - canvas.width) / 2;
             panY = (window.innerHeight - canvas.height) / 2;
@@ -682,36 +683,26 @@
             applyTransforms();
         }
 
-        // Initialize Canvas View State
         function initCanvas(width, height) {
             canvas.width = width;
             canvas.height = height;
-
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
             startMenu.classList.add('hidden');
             workspace.classList.remove('hidden');
-            
             transformContainer.style.width = canvas.width + 'px';
             transformContainer.style.height = canvas.height + 'px';
-            
             centerCanvas();
             attachDrawingListeners();
         }
 
-        // Confirm Dimensions Action
         confirmBtn.addEventListener('click', () => {
-            const w = parseInt(canvasWidthInput.value) || 800;
-            const h = parseInt(canvasHeightInput.value) || 600;
-            initCanvas(w, h);
+            initCanvas(parseInt(canvasWidthInput.value) || 800, parseInt(canvasHeightInput.value) || 600);
         });
 
-        // Load from File Action
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 const img = new Image();
@@ -724,7 +715,7 @@
             reader.readAsDataURL(file);
         });
 
-        /* DRAWING ENGINE LOGIC */
+        /* STABILIZED DRAW ENGINE & STRUCTURAL POINTER CAPTURES */
         function attachDrawingListeners() {
             canvas.addEventListener('pointerdown', startDrawing);
             canvas.addEventListener('pointermove', drawStroke);
@@ -734,21 +725,21 @@
         function getCanvasCoordinates(e) {
             const rect = transformContainer.getBoundingClientRect();
             const rad = (-rotation * Math.PI) / 180;
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
             const xRot = (e.clientX - cx) * Math.cos(rad) - (e.clientY - cy) * Math.sin(rad);
             const yRot = (e.clientX - cx) * Math.sin(rad) + (e.clientY - cy) * Math.cos(rad);
-            
-            return {
-                x: xRot / scale + canvas.width / 2,
-                y: yRot / scale + canvas.height / 2
-            };
+            return { x: xRot / scale + canvas.width / 2, y: yRot / scale + canvas.height / 2 };
         }
 
         function startDrawing(e) {
-            if (activePointers.length > 0) return; 
+            if (activePointers.length > 0) return;
+            e.stopPropagation(); // Stops interaction bubbling out to the workspace pan engine!
+            
+            saveState(); // Lock state history
             drawing = true;
+            activeColor = provisionalColor; // Formalize color selection
+            pushToRecentColors(activeColor); // Put color onto the recent palette history
+
             const coords = getCanvasCoordinates(e);
             ctx.beginPath();
             ctx.moveTo(coords.x, coords.y);
@@ -757,12 +748,12 @@
 
         function drawStroke(e) {
             if (!drawing) return;
+            e.stopPropagation();
             const coords = getCanvasCoordinates(e);
 
             ctx.lineWidth = currentBrushSize;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            
             ctx.strokeStyle = activeColor;
             ctx.globalAlpha = currentOpacity;
 
@@ -772,35 +763,34 @@
             ctx.moveTo(coords.x, coords.y);
         }
 
-        function stopDrawing() {
+        function stopDrawing(e) {
             if (drawing) {
                 drawing = false;
                 ctx.beginPath();
             }
         }
 
-        /* DESKTOP MOUSE / MOBILE GESTURE ENGINE FOR PAN, ZOOM, ROTATE */
+        /* GESTURE ENGINE (RUNS EXCLUSIVELY ON WORKSPACE BACKGROUND HOVER BLOCKS) */
+        let activePointers = [];
+        let startPanX = 0, startPanY = 0;
+        let initialTouchDist = 0, initialTouchAngle = 0, initialScale = 1, initialRotation = 0;
+        let isPanning = false;
+
         workspace.addEventListener('pointerdown', (e) => {
-            // Block viewport changes if directly interacting with topbar panels or left sliders
             if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
-            if (e.target === canvas && !drawing && activePointers.length === 0) return;
+            if (e.target === canvas) return; // Completely ignores canvas pointerdowns here!
 
             activePointers.push(e);
-            
             if (activePointers.length === 1) {
                 isPanning = true;
                 startPanX = e.clientX - panX;
                 startPanY = e.clientY - panY;
             } else if (activePointers.length === 2) {
                 isPanning = false;
-                drawing = false; 
-                initialTouchDist = getDistance(activePointers[0], activePointers[1]);
-                initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
+                initialTouchDist = Math.hypot(activePointers[1].clientX - activePointers[0].clientX, activePointers[1].clientY - activePointers[0].clientY);
+                initialTouchAngle = Math.atan2(activePointers[1].clientY - activePointers[0].clientY, activePointers[1].clientX - activePointers[0].clientX) * 180 / Math.PI;
                 initialScale = scale;
                 initialRotation = rotation;
-                
-                startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
-                startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
             }
         });
 
@@ -813,12 +803,10 @@
                 panY = e.clientY - startPanY;
                 applyTransforms();
             } else if (activePointers.length === 2) {
-                const currentDist = getDistance(activePointers[0], activePointers[1]);
-                const currentAngle = getAngle(activePointers[0], activePointers[1]);
+                const currentDist = Math.hypot(activePointers[1].clientX - activePointers[0].clientX, activePointers[1].clientY - activePointers[0].clientY);
+                const currentAngle = Math.atan2(activePointers[1].clientY - activePointers[0].clientY, activePointers[1].clientX - activePointers[0].clientX) * 180 / Math.PI;
 
-                let targetScale = initialScale * (currentDist / initialTouchDist);
-                scale = Math.max(0.1, Math.min(targetScale, 10));
-                
+                scale = Math.max(0.1, Math.min(initialScale * (currentDist / initialTouchDist), 10));
                 rotation = initialRotation + (currentAngle - initialTouchAngle);
                 applyTransforms();
             }
@@ -826,13 +814,8 @@
 
         function handlePointerUp(e) {
             activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
-            if (activePointers.length < 2) {
-                initialTouchDist = 0;
-                initialTouchAngle = 0;
-            }
-            if (activePointers.length === 0) {
-                isPanning = false;
-            }
+            if (activePointers.length < 2) { initialTouchDist = 0; initialTouchAngle = 0; }
+            if (activePointers.length === 0) isPanning = false;
         }
 
         workspace.addEventListener('pointerup', handlePointerUp);
@@ -841,16 +824,7 @@
         workspace.addEventListener('wheel', (e) => {
             if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
             e.preventDefault();
-            const zoomFactor = 1.1;
-            let targetScale = scale;
-            
-            if (e.deltaY < 0) {
-                targetScale *= zoomFactor;
-            } else {
-                targetScale /= zoomFactor;
-            }
-            
-            scale = Math.max(0.1, Math.min(targetScale, 10));
+            scale = Math.max(0.1, Math.min(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1), 10));
             applyTransforms();
         }, { passive: false });
 
