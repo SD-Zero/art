@@ -109,9 +109,10 @@ if (!sizePreviewContainer) {
     sizePreviewContainer.style.bottom = '180px';
     sizePreviewContainer.style.width = '100px';
     sizePreviewContainer.style.height = '100px';
-    sizePreviewContainer.style.display = 'none'; // Hidden by default, only visible during active resizing
+    sizePreviewContainer.style.display = 'flex';
     sizePreviewContainer.style.alignItems = 'center';
     sizePreviewContainer.style.justifyContent = 'center';
+    sizePreviewContainer.style.background = 'rgba(0,0,0,0.1)';
     sizePreviewContainer.style.borderRadius = '8px';
     sizePreviewContainer.style.pointerEvents = 'none';
     sizePreviewContainer.style.zIndex = '100';
@@ -126,86 +127,11 @@ function updateBrushSizePreview() {
     circle.style.maxWidth = '90px';
     circle.style.maxHeight = '90px';
     circle.style.borderRadius = '50%';
+    circle.style.background = currentTool === 'eraser' ? 'rgba(255,255,255,0.8)' : activeColor;
     circle.style.border = '2px solid #fff';
     circle.style.boxShadow = '0 0 4px rgba(0,0,0,0.5)';
     sizePreviewContainer.appendChild(circle);
 }
-
-// Dynamically build the menu's "Import Image" button if it doesn't exist
-let importImgBtn = document.getElementById('importImgBtn');
-if (!importImgBtn) {
-    importImgBtn = document.createElement('button');
-    importImgBtn.id = 'importImgBtn';
-    importImgBtn.className = 'menu-item';
-    importImgBtn.textContent = 'Import Image';
-    
-    // Inject right under the New File button inside the dropdown list menu structure
-    if (newFileBtn && newFileBtn.parentNode) {
-        newFileBtn.parentNode.insertBefore(importImgBtn, newFileBtn.nextSibling);
-    }
-}
-
-// Hidden file picker for handling runtime layer asset injections
-const hiddenLayerAssetPicker = document.createElement('input');
-hiddenLayerAssetPicker.type = 'file';
-hiddenLayerAssetPicker.accept = 'image/*';
-hiddenLayerAssetPicker.style.display = 'none';
-document.body.appendChild(hiddenLayerAssetPicker);
-
-importImgBtn.addEventListener('click', () => {
-    menuDropdown.classList.remove('show');
-    hiddenLayerAssetPicker.click();
-});
-
-hiddenLayerAssetPicker.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        const img = new Image();
-        img.onload = function() {
-            saveHistoryState();
-            
-            // Allocate a pristine standalone canvas layer
-            const layerCanvas = document.createElement('canvas');
-            layerCanvas.width = canvas.width;
-            layerCanvas.height = canvas.height;
-            const layerCtx = layerCanvas.getContext('2d');
-            
-            // Draw image scaled down proportionally if it exceeds target dimensions
-            const scaleFactor = Math.min(canvas.width / img.width, canvas.height / img.height, 1);
-            const targetWidth = img.width * scaleFactor;
-            const targetHeight = img.height * scaleFactor;
-            const offsetX = (canvas.width - targetWidth) / 2;
-            const offsetY = (canvas.height - targetHeight) / 2;
-            
-            layerCtx.drawImage(img, offsetX, offsetY, targetWidth, targetHeight);
-
-            const layerObj = {
-                id: layerIdCounter++,
-                name: `Imported Image`,
-                canvas: layerCanvas,
-                ctx: layerCtx,
-                visible: true,
-                opacity: 1.0,
-                blendMode: 'source-over',
-                clipping: false,
-                alphaLock: false
-            };
-
-            layers.unshift(layerObj); 
-            activeLayerId = layerObj.id;
-            
-            updateLayersUI();
-            updateGlobalLayerControlsUI();
-            compositeCanvasStack();
-        }
-        img.src = event.target.result;
-    }
-    reader.readAsDataURL(file);
-    hiddenLayerAssetPicker.value = ''; // Flush stream container
-});
 
 // Update DOM Label text from OPAC to OPACITY safely
 const opacLabel = document.querySelector('label[for="opacSlider"]') || Array.from(document.querySelectorAll('span, label')).find(el => el.textContent.includes('OPAC'));
@@ -240,12 +166,6 @@ function setupCustomSlider(container, fill, handle, bubble, min, max, initialVal
         e.stopPropagation();
         container.setPointerCapture(e.pointerId);
         isDragging = true;
-        
-        // Only display sizing previews if updating brush configurations
-        if(container === sizeSlider) {
-            sizePreviewContainer.style.display = 'flex';
-        }
-        
         updateSliderFromCoords(e.clientY);
     });
 
@@ -259,9 +179,6 @@ function setupCustomSlider(container, fill, handle, bubble, min, max, initialVal
         if (isDragging) {
             container.releasePointerCapture(e.pointerId);
             isDragging = false;
-            if(container === sizeSlider) {
-                sizePreviewContainer.style.display = 'none';
-            }
         }
     };
 
@@ -811,9 +728,7 @@ function drawColorWheel() {
     const innerRadius = outerRadius - 20;
     const squareSize = Math.floor(innerRadius * Math.sqrt(2)) - 4;
 
-    // Fill background completely solid white to eliminate transparencies
-    wheelCtx.fillStyle = '#ffffff';
-    wheelCtx.fillRect(0, 0, width, height);
+    wheelCtx.clearRect(0, 0, width, height);
 
     // 1. Draw Hue Ring
     for (let y = 0; y < height; y++) {
@@ -1025,12 +940,13 @@ function startDrawing(e) {
     lastCoords = coords;
 
     if (activeLayer.alphaLock) {
-        // Snapshot the original untouched artwork snapshot before launching this active stroke session
+        // 1. Snapshot alpha mask shape parameters safely
         alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
 
-        // Prep the offscreen scratch board empty
+        // 2. Load the base line art into scratch active canvas environment
         alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
+        alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
     }
     
     drawStroke(e);
@@ -1046,15 +962,15 @@ function drawStroke(e) {
     const coords = getCanvasCoordinates(e);
     
     if (activeLayer.alphaLock) {
-        // Build the drawing line paths specifically over an offscreen setup first
         alphaScratchCtx.save();
         alphaScratchCtx.lineWidth = currentBrushSize;
         alphaScratchCtx.lineCap = 'round';
         alphaScratchCtx.lineJoin = 'round';
         alphaScratchCtx.globalAlpha = currentOpacity;
         
+        // FIXED Alpha Lock Eraser Implementation
         if (currentTool === 'eraser') {
-            // Cut away the newly drawn artwork paths directly from our active scratch line canvas
+            // First drop a clip path cutting the line out entirely 
             alphaScratchCtx.globalCompositeOperation = 'destination-out';
             alphaScratchCtx.strokeStyle = 'rgba(0,0,0,1.0)';
             alphaScratchCtx.beginPath();
@@ -1062,29 +978,25 @@ function drawStroke(e) {
             alphaScratchCtx.lineTo(coords.x, coords.y);
             alphaScratchCtx.stroke();
             
-            // Re-apply original untouched target details underneath the scratchpad's transparent gaps
+            // Instantly repair the baseline geometry by filling missing values underneath from backup
             alphaScratchCtx.globalCompositeOperation = 'destination-over';
             alphaScratchCtx.drawImage(alphaBackupCanvas, 0, 0);
         } else {
-            // Standard drawing additions over top of the current session artwork
+            // Standard brush stroke logic pathing
             alphaScratchCtx.globalCompositeOperation = 'source-over';
             alphaScratchCtx.strokeStyle = activeColor;
             alphaScratchCtx.beginPath();
             alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
             alphaScratchCtx.lineTo(coords.x, coords.y);
             alphaScratchCtx.stroke();
-            
-            // Retain background original layer values underneath new paint
-            alphaScratchCtx.globalCompositeOperation = 'destination-over';
-            alphaScratchCtx.drawImage(alphaBackupCanvas, 0, 0);
         }
         alphaScratchCtx.restore();
 
-        // Push combined scratchpad canvas results directly onto the interactive primary painting layer
+        // Overwrite active layer data space
         activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
         activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
 
-        // Enforce structural boundary limits by applying destination-in masking via backup transparency bounds
+        // Re-align layer edge masks strictly using destination-in bounding metrics
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'destination-in';
         activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
