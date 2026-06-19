@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>My Art Program</title>
     <style>
         /* Base page alignment */
         body {
             margin: 0;
+            padding: 0;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -15,6 +16,15 @@
             background-color: #1a1a1a;
             color: #ffffff;
             font-family: sans-serif;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Screen Toggling */
+        .hidden {
+            display: none !important;
         }
 
         /* Start Menu Box */
@@ -24,20 +34,17 @@
             border-radius: 12px;
             text-align: center;
             width: 350px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            z-index: 10;
         }
 
-        /* Logo Placeholder */
-        .logo-placeholder {
-            width: 120px;
-            height: 120px;
-            background-color: #3d3d3d;
-            border: 2px dashed #666;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 20px auto;
-            color: #aaa;
+        /* Logo Text Placeholder */
+        .logo-text {
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            color: #007acc;
         }
 
         /* Size Inputs Layout */
@@ -52,35 +59,84 @@
             width: 100px;
             padding: 5px;
             text-align: center;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
         }
 
-        /* Proportional Preview Box Box */
+        /* Proportional Preview Box */
         .preview-box {
             margin: 20px auto;
             border: 1px solid #ffffff;
             background-color: #ffffff;
-            /* Constraints so it doesn't get infinitely big on screen */
             max-width: 150px;
             max-height: 150px;
         }
 
-        /* Confirm Button */
+        /* Action Buttons */
         .confirm-btn {
             background-color: #007acc;
             color: white;
             border: none;
-            padding: 10px 20px;
+            padding: 12px 20px;
             font-size: 16px;
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .file-label {
+            display: block;
+            background-color: #444;
+            color: white;
+            padding: 10px 20px;
+            font-size: 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            border: 1px dashed #666;
+        }
+
+        .file-label:hover {
+            background-color: #555;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* ART WORKSPACE (Fills entire viewport) */
+        .workspace {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: #111;
+            touch-action: none; /* Prevents default browser scrolling/zooming */
+        }
+
+        /* Viewport tracking container for PAN/ZOOM/ROTATE transforms */
+        .transform-container {
+            position: absolute;
+            transform-origin: 0 0;
+            display: inline-block;
+        }
+
+        canvas {
+            background-color: #ffffff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            display: block;
         }
     </style>
 </head>
 <body>
 
     <div id="startMenu" class="menu-container">
-        <div class="logo-placeholder">(insertlogohere)</div>
+        <div class="logo-text">(insertlogohere)</div>
         
         <h2>Create New Canvas</h2>
         
@@ -98,12 +154,46 @@
         <div id="previewBox" class="preview-box"></div>
         
         <button id="confirmBtn" class="confirm-btn">Confirm</button>
+        
+        <label for="fileInput" class="file-label">Load from File</label>
+        <input type="file" id="fileInput" accept="image/*">
+    </div>
+
+    <div id="workspace" class="workspace hidden">
+        <div id="transformContainer" class="transform-container">
+            <canvas id="paintCanvas"></canvas>
+        </div>
     </div>
 
     <script>
+        // Menu Elements
+        const startMenu = document.getElementById('startMenu');
         const canvasWidthInput = document.getElementById('canvasWidth');
         const canvasHeightInput = document.getElementById('canvasHeight');
         const previewBox = document.getElementById('previewBox');
+        const confirmBtn = document.getElementById('confirmBtn');
+        const fileInput = document.getElementById('fileInput');
+
+        // Workspace Elements
+        const workspace = document.getElementById('workspace');
+        const transformContainer = document.getElementById('transformContainer');
+        const canvas = document.getElementById('paintCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // State variables for Viewport manipulation (Pan, Zoom, Rotate)
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let rotation = 0; // In degrees
+
+        // Track pointer states for multi-touch gestures
+        let activePointers = [];
+        let startPanX = 0, startPanY = 0;
+        let initialTouchDist = 0;
+        let initialTouchAngle = 0;
+        let initialScale = 1;
+        let initialRotation = 0;
+        let isPanning = false;
 
         // Handles the real-time visual size preview calculation
         function updatePreview() {
@@ -122,9 +212,147 @@
 
         canvasWidthInput.addEventListener('input', updatePreview);
         canvasHeightInput.addEventListener('input', updatePreview);
-
-        // Run on initial load
         updatePreview();
+
+        // Update CSS Transforms for Pan, Zoom, and Rotation
+        function applyTransforms() {
+            transformContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${scale}) rotate(${rotation}deg)`;
+        }
+
+        // Center the canvas inside the viewport window dynamically
+        function centerCanvas() {
+            panX = (window.innerWidth - canvas.width * scale) / 2;
+            panY = (window.innerHeight - canvas.height * scale) / 2;
+            applyTransforms();
+        }
+
+        // Initialize Canvas View State
+        function initCanvas(width, height) {
+            canvas.width = width;
+            canvas.height = height;
+
+            // Start canvas with a clean white backing array
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            startMenu.classList.add('hidden');
+            workspace.classList.remove('hidden');
+            
+            centerCanvas();
+        }
+
+        // Confirm Dimensions Action
+        confirmBtn.addEventListener('click', () => {
+            const w = parseInt(canvasWidthInput.value) || 800;
+            const h = parseInt(canvasHeightInput.value) || 600;
+            initCanvas(w, h);
+        });
+
+        // Load from File Action
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    initCanvas(img.width, img.height);
+                    ctx.drawImage(img, 0, 0);
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        /* DESKTOP MOUSE / MOBILE GESTURE ENGINE FOR PAN, ZOOM, ROTATE */
+        
+        // helper functions for calculations
+        function getDistance(p1, p2) {
+            return Math.hypot(p2.clientX - p1.clientX, p2.clientY - p1.clientY);
+        }
+
+        function getAngle(p1, p2) {
+            return Math.atan2(p2.clientY - p1.clientY, p2.clientX - p1.clientX) * 180 / Math.PI;
+        }
+
+        workspace.addEventListener('pointerdown', (e) => {
+            activePointers.push(e);
+            
+            if (activePointers.length === 1) {
+                // Single touch / Right click pan trigger setup
+                isPanning = true;
+                startPanX = e.clientX - panX;
+                startPanY = e.clientY - panY;
+            } else if (activePointers.length === 2) {
+                // Multi touch gesture setup
+                isPanning = false;
+                initialTouchDist = getDistance(activePointers[0], activePointers[1]);
+                initialTouchAngle = getAngle(activePointers[0], activePointers[1]);
+                initialScale = scale;
+                initialRotation = rotation;
+                
+                // Track mid-points to pivot from between fingers
+                startPanX = ((activePointers[0].clientX + activePointers[1].clientX) / 2) - panX;
+                startPanY = ((activePointers[0].clientY + activePointers[1].clientY) / 2) - panY;
+            }
+        });
+
+        workspace.addEventListener('pointermove', (e) => {
+            // Find and update active pointer inside array state
+            const index = activePointers.findIndex(p => p.pointerId === e.pointerId);
+            if (index !== -1) activePointers[index] = e;
+
+            if (isPanning && activePointers.length === 1) {
+                panX = e.clientX - startPanX;
+                panY = e.clientY - startPanY;
+                applyTransforms();
+            } else if (activePointers.length === 2) {
+                // Process pinch-zoom and rotation concurrently
+                const currentDist = getDistance(activePointers[0], activePointers[1]);
+                const currentAngle = getAngle(activePointers[0], activePointers[1]);
+
+                scale = initialScale * (currentDist / initialTouchDist);
+                rotation = initialRotation + (currentAngle - initialTouchAngle);
+                
+                // Keep center focal point moving smoothly between fingers
+                const midX = (activePointers[0].clientX + activePointers[1].clientX) / 2;
+                const midY = (activePointers[0].clientY + activePointers[1].clientY) / 2;
+                
+                // Update track position dynamically based on continuous transformations
+                // We'll update the values directly via gestures
+                applyTransforms();
+            }
+        });
+
+        function handlePointerUp(e) {
+            activePointers = activePointers.filter(p => p.pointerId !== e.pointerId);
+            if (activePointers.length < 2) {
+                initialTouchDist = 0;
+                initialTouchAngle = 0;
+            }
+            if (activePointers.length === 0) {
+                isPanning = false;
+            }
+        }
+
+        workspace.addEventListener('pointerup', handlePointerUp);
+        workspace.addEventListener('pointercancel', handlePointerUp);
+
+        // Desktop Mouse Wheel Zoom Support
+        workspace.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = 1.1;
+            
+            // Adjust zoom factor scaling target directions
+            if (e.deltaY < 0) {
+                scale *= zoomFactor;
+            } else {
+                scale /= zoomFactor;
+            }
+            applyTransforms();
+        }, { passive: false });
+
     </script>
 </body>
 </html>
