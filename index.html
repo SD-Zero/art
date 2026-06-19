@@ -166,7 +166,7 @@
             justify-content: center;
         }
 
-        .icon-btn:hover:not(:disabled) {
+        .icon-btn:hover:not(:disabled), .icon-btn.active {
             background-color: #222222;
             color: #ffffff;
         }
@@ -201,7 +201,7 @@
             top: 40px;
             left: 0;
             background-color: #1c1c1c;
-            min-width: 160px;
+            min-width: 180px;
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
             border: 1px solid #2a2a2a;
             border-radius: 4px;
@@ -219,6 +219,12 @@
         .dropdown-content a:hover {
             background-color: #2a2a2a;
             color: #ffffff;
+        }
+
+        .dropdown-divider {
+            height: 1px;
+            background-color: #2a2a2a;
+            margin: 4px 0;
         }
 
         /* --- COLOR DROPDOWN PANEL UI --- */
@@ -326,7 +332,7 @@
             display: block !important;
         }
 
-        /* --- FIXED & WIDER VERTICAL SLIDERS UI --- */
+        /* --- VERTICAL SLIDERS WITH FLOATING VALUES UI --- */
         .left-controls {
             position: absolute;
             left: 20px;
@@ -336,7 +342,7 @@
             gap: 30px;
             z-index: 10;
             background: rgba(18, 18, 18, 0.6);
-            padding: 20px 12px;
+            padding: 25px 12px 20px 12px;
             border-radius: 20px;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -349,7 +355,7 @@
             align-items: center;
             gap: 12px;
             width: 45px;
-            height: 200px;
+            height: 215px;
         }
 
         .slider-label {
@@ -360,9 +366,18 @@
             font-weight: bold;
         }
 
+        /* Dynamic bubble counter display output text position styling */
+        .slider-bubble-value {
+            font-size: 11px;
+            font-weight: bold;
+            color: #007acc;
+            font-family: monospace;
+            height: 14px;
+        }
+
         .slider-container {
             position: relative;
-            width: 14px; /* Wider slider track container */
+            width: 14px; 
             height: 150px;
             background: #333;
             border-radius: 7px;
@@ -384,12 +399,12 @@
             position: absolute;
             left: 50%;
             bottom: 100%;
-            width: 22px; /* Large easy-to-hit mobile handles */
+            width: 22px; 
             height: 22px;
             background: #ffffff;
             border-radius: 50%;
             box-shadow: 0 2px 6px rgba(0,0,0,0.6);
-            transform: translate(-50%, 50%); /* Keeps handles perfectly centered on the track */
+            transform: translate(-50%, 50%); 
             pointer-events: none;
         }
     </style>
@@ -428,9 +443,12 @@
                     <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
                 </button>
                 <div id="menuDropdown" class="dropdown-content">
-                    <a href="#" id="placeholder1">Placeholder Opt 1</a>
-                    <a href="#" id="placeholder2">Placeholder Opt 2</a>
-                    <a href="#" id="placeholder3">Placeholder Opt 3</a>
+                    <a href="#" id="newFileBtn">New File</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="#" id="savePngBtn">Save as PNG</a>
+                    <a href="#" id="saveJpegBtn">Save as JPEG</a>
+                    <a href="#" id="saveSvgBtn">Save as SVG</a>
+                    <a href="#" id="saveSpeedpaintBtn">Save Speedpaint</a>
                 </div>
             </div>
             
@@ -438,8 +456,12 @@
                 <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01a1.49 1.49 0 0 1-.22-.84c0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
             </button>
             
-            <button class="icon-btn" id="brushBtn" title="Brush">
+            <button class="icon-btn active" id="brushBtn" title="Brush">
                 <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92.62 2.1 1 3.5 1 2.5 0 4.5-2 4.5-4.5 0-.41-.15-.77-.32-1.15l-1.35-2.7L7 14zm14.37-9c.39-.39.39-1.02 0-1.41L19.41.63a.996.996 0 0 0-1.41 0L6.67 11.96l2.37 2.37L21.37 5z"/></svg>
+            </button>
+
+            <button class="icon-btn" id="eraserBtn" title="Eraser">
+                <svg viewBox="0 0 24 24"><path d="M16.24 3.56l4.95 4.94c.78.79.78 2.05 0 2.84L12 20.31a2.003 2.003 0 0 1-1.41.59H4v-6.59c0-.53.21-1.04.59-1.41l9.17-9.17c.79-.78 2.05-.78 2.84 0zm-7.07 15.3l1.41 1.41L19.17 11.7l-1.41-1.41-8.59 8.57z"/></svg>
             </button>
             
             <button class="icon-btn" id="transformBtn" title="Transform">
@@ -456,7 +478,7 @@
                 <svg viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
             </button>
             <button class="icon-btn" id="redoBtn" title="Redo" disabled>
-                <svg viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 1.03-10.02 5.22l2.37.78c1.05-3.19 4.06-5.5 7.65-5.5 1.96 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+                <svg viewBox="0 0 24 24"><path d="M11.5 8c2.65 0 5.05.99 6.9 2.6L22 7v9h-9l3.62-3.62c-1.39-1.16-3.16-1.88-5.12-1.88-3.54 0-6.55 2.31-7.6 5.5l-2.37-.78C2.92 11.03 6.85 8 11.5 8z"/></svg>
             </button>
         </div>
 
@@ -478,6 +500,7 @@
         <div class="left-controls">
             <div class="slider-wrapper">
                 <span class="slider-label">Size</span>
+                <span id="sizeBubble" class="slider-bubble-value">10</span>
                 <div id="sizeSlider" class="slider-container">
                     <div id="sizeTrackFill" class="slider-track-fill"></div>
                     <div id="sizeHandle" class="slider-handle"></div>
@@ -485,6 +508,7 @@
             </div>
             <div class="slider-wrapper">
                 <span class="slider-label">Opac</span>
+                <span id="opacBubble" class="slider-bubble-value">100</span>
                 <div id="opacSlider" class="slider-container">
                     <div id="opacTrackFill" class="slider-track-fill"></div>
                     <div id="opacHandle" class="slider-handle"></div>
@@ -523,15 +547,26 @@
 
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
+        const brushBtn = document.getElementById('brushBtn');
+        const eraserBtn = document.getElementById('eraserBtn');
 
-        // Custom Slider Target DOM Elements
+        // Menu Link Targets Elements
+        const newFileBtn = document.getElementById('newFileBtn');
+        const savePngBtn = document.getElementById('savePngBtn');
+        const saveJpegBtn = document.getElementById('saveJpegBtn');
+        const saveSvgBtn = document.getElementById('saveSvgBtn');
+        const saveSpeedpaintBtn = document.getElementById('saveSpeedpaintBtn');
+
+        // Custom Slider DOM Targets
         const sizeSlider = document.getElementById('sizeSlider');
         const sizeTrackFill = document.getElementById('sizeTrackFill');
         const sizeHandle = document.getElementById('sizeHandle');
+        const sizeBubble = document.getElementById('sizeBubble');
 
         const opacSlider = document.getElementById('opacSlider');
         const opacTrackFill = document.getElementById('opacTrackFill');
         const opacHandle = document.getElementById('opacHandle');
+        const opacBubble = document.getElementById('opacBubble');
 
         // State Tracking Data Variables
         let scale = 1;
@@ -543,7 +578,8 @@
         let currentBrushSize = 10;
         let currentOpacity = 1.0;
         let activeColor = '#000000';
-        let strokeHasPainted = false; // Tracks if a stroke actually hits the canvas
+        let currentTool = 'brush'; // 'brush' or 'eraser'
+        let strokeHasPainted = false; 
 
         let recentColors = Array(20).fill('#ffffff');
 
@@ -552,13 +588,16 @@
         let redoStack = [];
         const MAX_HISTORY = 20;
 
-        // --- CUSTOM NATIVE TOUCH SLIDER LOGIC ---
-        function setupCustomSlider(container, fill, handle, min, max, initialValue, onChange) {
+        // Speedpaint Capture Stream Parameters
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        // --- CUSTOM NATIVE TOUCH SLIDER ENGINE ---
+        function setupCustomSlider(container, fill, handle, bubble, min, max, initialValue, isPercentage, onChange) {
             let isDragging = false;
 
             function updateSliderFromCoords(clientY) {
                 const rect = container.getBoundingClientRect();
-                // Calculate percentages based from base track up
                 let percentage = (rect.bottom - clientY) / rect.height;
                 percentage = Math.max(0, Math.min(1, percentage));
 
@@ -566,13 +605,16 @@
                 handle.style.bottom = (percentage * 100) + '%';
 
                 const calculatedValue = min + percentage * (max - min);
+                const displayValue = Math.round(calculatedValue);
+                bubble.textContent = displayValue;
+                
                 onChange(calculatedValue);
             }
 
-            // Set initial state
             const initialPercentage = (initialValue - min) / (max - min);
             fill.style.height = (initialPercentage * 100) + '%';
             handle.style.bottom = (initialPercentage * 100) + '%';
+            bubble.textContent = Math.round(initialValue);
 
             container.addEventListener('pointerdown', (e) => {
                 e.stopPropagation();
@@ -598,16 +640,28 @@
             container.addEventListener('pointercancel', stopDrag);
         }
 
-        // Initialize Slider Configurations
-        setupCustomSlider(sizeSlider, sizeTrackFill, sizeHandle, 1, 100, 10, (val) => {
+        setupCustomSlider(sizeSlider, sizeTrackFill, sizeHandle, sizeBubble, 1, 100, 10, false, (val) => {
             currentBrushSize = Math.round(val);
         });
 
-        setupCustomSlider(opacSlider, opacTrackFill, opacHandle, 0, 100, 100, (val) => {
+        setupCustomSlider(opacSlider, opacTrackFill, opacHandle, opacBubble, 0, 100, 100, true, (val) => {
             currentOpacity = val / 100;
         });
 
-        // Dropdown Menu Toggles
+        // Toggle Active Tools State Setup
+        brushBtn.addEventListener('click', () => {
+            currentTool = 'brush';
+            brushBtn.classList.add('active');
+            eraserBtn.classList.remove('active');
+        });
+
+        eraserBtn.addEventListener('click', () => {
+            currentTool = 'eraser';
+            eraserBtn.classList.add('active');
+            brushBtn.classList.remove('active');
+        });
+
+        // Menu Dropdown and Panel Handling Controls
         menuBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             colorPanel.classList.remove('show');
@@ -625,12 +679,13 @@
             colorPanel.classList.remove('show');
         });
 
+        // FIXED: Click-outside auto dismiss covers both menu and color dropdown panels correctly now
         window.addEventListener('click', (e) => {
             if (!menuDropdown.contains(e.target) && e.target !== menuBtn) menuDropdown.classList.remove('show');
             if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) colorPanel.classList.remove('show');
         });
 
-        // Canvas Proportional Preview Setup
+        // Proportional Viewport Preview Engine
         function updatePreview() {
             const w = parseInt(canvasWidthInput.value) || 1;
             const h = parseInt(canvasHeightInput.value) || 1;
@@ -644,7 +699,6 @@
                 previewBox.style.width = (w / h) * maxDisplaySize + 'px';
             }
         }
-
         canvasWidthInput.addEventListener('input', updatePreview);
         canvasHeightInput.addEventListener('input', updatePreview);
         updatePreview();
@@ -661,11 +715,11 @@
             applyTransforms();
         }
 
+        // Undo / Redo Memory Operations Stack Engine
         function saveHistoryState() {
-            // Push active state into stack history
             undoStack.push(canvas.toDataURL());
             if (undoStack.length > MAX_HISTORY) undoStack.shift();
-            redoStack = []; // Flush redo tracks on brand new actions
+            redoStack = []; 
             updateHistoryButtons();
         }
 
@@ -682,8 +736,12 @@
 
             const img = new Image();
             img.onload = function() {
+                ctx.save();
+                ctx.globalAlpha = 1.0;
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
+                ctx.restore();
                 updateHistoryButtons();
             };
             img.src = stateData;
@@ -692,6 +750,93 @@
         undoBtn.addEventListener('click', () => applyHistoryState(undoStack, redoStack));
         redoBtn.addEventListener('click', () => applyHistoryState(redoStack, undoStack));
 
+        // --- EXPORT MENU ACTIONS LOGIC PIPELINES ---
+        newFileBtn.addEventListener('click', () => {
+            stopSpeedpaintRecording();
+            workspace.classList.add('hidden');
+            startMenu.classList.remove('hidden');
+        });
+
+        savePngBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'artwork.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        saveJpegBtn.addEventListener('click', () => {
+            // JPEGs don't support alpha, create a proxy canvas step to assure a flattened opaque clean background
+            const exportCanvas = document.createElement('canvas');
+            exportCanvas.width = canvas.width;
+            exportCanvas.height = canvas.height;
+            const exportCtx = exportCanvas.getContext('2d');
+            
+            exportCtx.fillStyle = '#ffffff';
+            exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+            exportCtx.drawImage(canvas, 0, 0);
+
+            const link = document.createElement('a');
+            link.download = 'artwork.jpg';
+            link.href = exportCanvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        });
+
+        saveSvgBtn.addEventListener('click', () => {
+            // Embed raster content directly via base64 translation wrapping container strings safely
+            const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas.width}" height="${canvas.height}">
+                <image width="${canvas.width}" height="${canvas.height}" href="${canvas.toDataURL('image/png')}"/>
+            </svg>`;
+            
+            const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+            const link = document.createElement('a');
+            link.download = 'artwork.svg';
+            link.href = URL.createObjectURL(blob);
+            link.click();
+        });
+
+        saveSpeedpaintBtn.addEventListener('click', () => {
+            stopSpeedpaintRecording();
+        });
+
+        // --- SPEEDPAINT RECORDER MANAGEMENT FUNCTIONS ---
+        function startSpeedpaintRecording() {
+            recordedChunks = [];
+            try {
+                // Capture canvas frame streams at 30FPS baseline parameters
+                const stream = canvas.captureStream(30);
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm; codecs=vp9' });
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.download = 'speedpaint.webm';
+                    link.href = url;
+                    link.click();
+                    
+                    // Restart immediate fresh recording thread loop sequence context backgrounds
+                    startSpeedpaintRecording();
+                };
+
+                mediaRecorder.start();
+            } catch (err) {
+                console.warn("Speedpaint capture not supported on this browser architecture config profile setup.", err);
+            }
+        }
+
+        function stopSpeedpaintRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            } else {
+                alert("No active session footage found to export yet!");
+            }
+        }
+
+        // Initialize Canvas Instance Configurations
         function initCanvas(width, height) {
             canvas.width = width;
             canvas.height = height;
@@ -707,9 +852,13 @@
             
             centerCanvas();
             attachDrawingListeners();
+            
             undoStack = [];
             redoStack = [];
             updateHistoryButtons();
+
+            // Kick off live background speedpaint recording session pipeline loops
+            startSpeedpaintRecording();
         }
 
         confirmBtn.addEventListener('click', () => {
@@ -734,7 +883,7 @@
             reader.readAsDataURL(file);
         });
 
-        // Color Picker Systems
+        // Color Picker Wheel Drawing Logic
         function drawColorWheel() {
             const width = colorWheel.width;
             const height = colorWheel.height;
@@ -813,7 +962,7 @@
         }
         renderPalette();
 
-        /* --- DRAWING ENGINE LOGIC (With Panning Controls Lockout) --- */
+        /* --- DRAWING CONTROLS CORE TUNING ENGINE --- */
         function attachDrawingListeners() {
             canvas.addEventListener('pointerdown', startDrawing);
             canvas.addEventListener('pointermove', drawStroke);
@@ -836,10 +985,9 @@
         }
 
         function startDrawing(e) {
-            // Block line generation paths if workspace multi-touch controls are active
             if (activePointers.length > 0) return; 
             
-            saveHistoryState(); // Snapshot canvas matrix before editing pixels
+            saveHistoryState(); 
             drawing = true;
             strokeHasPainted = false; 
 
@@ -854,14 +1002,26 @@
             strokeHasPainted = true;
 
             const coords = getCanvasCoordinates(e);
+            
+            ctx.save();
             ctx.lineWidth = currentBrushSize;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            ctx.strokeStyle = activeColor;
             ctx.globalAlpha = currentOpacity;
+
+            // Compute composite modes matching active instrument selection targets
+            if (currentTool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1.0)';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = activeColor;
+            }
 
             ctx.lineTo(coords.x, coords.y);
             ctx.stroke();
+            ctx.restore();
+            
             ctx.beginPath();
             ctx.moveTo(coords.x, coords.y);
         }
@@ -870,14 +1030,14 @@
             if (drawing) {
                 drawing = false;
                 ctx.beginPath();
-                // ONLY push into palette once the pixel stroke is physically committed
-                if (strokeHasPainted) {
+                // Commit color historical data updates strictly matching drawing validations
+                if (strokeHasPainted && currentTool === 'brush') {
                     commitColorToPalette(activeColor);
                 }
             }
         }
 
-        /* --- STABILIZED VIEWPORT GESTURE ENGINE (Canvas locked while drawing) --- */
+        /* --- STABILIZED STROKE LOCK GESTURE ENGINE --- */
         let activePointers = [];
         let startPanX = 0, startPanY = 0;
         let initialTouchDist = 0;
@@ -896,8 +1056,6 @@
 
         workspace.addEventListener('pointerdown', (e) => {
             if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel')) return;
-            
-            // CRITICAL FIX: If pointer down is ON the canvas element directly, skip viewport pan manipulations completely
             if (e.target === canvas) return;
 
             activePointers.push(e);
