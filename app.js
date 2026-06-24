@@ -1057,9 +1057,81 @@ function generateBrushPreview(brush) {
 }
 
 // Modular Sub-Menu UI Generation Logic
-function renderModularBrushUI() {
-    brushCategoriesList.innerHTML = '';
+function renderModularBrushUI() // Helper to draw an elegant Ibis-style line stroke snapshot preview box
+function generateBrushPreview(brush) {
+    const previewCanvas = document.createElement('canvas');
+    previewCanvas.width = 180;
+    previewCanvas.height = 36;
+    const pCtx = previewCanvas.getContext('2d');
     
+    pCtx.fillStyle = '#ffffff';
+    pCtx.fillRect(0, 0, 180, 36);
+    
+    pCtx.save();
+    pCtx.fillStyle = '#1c1c1e';
+    pCtx.strokeStyle = '#1c1c1e';
+    
+    const points = [];
+    const steps = 40;
+    
+    for (let i = 0; i <= steps; i++) {
+        let t = i / steps;
+        let x = 15 + (150 * t);
+        let y = 18 + Math.sin(t * Math.PI * 2) * 3; 
+        let pressure = Math.sin(t * Math.PI); 
+        points.push({ x, y, pressure });
+    }
+    
+    for (let i = 0; i < points.length - 1; i++) {
+        let p1 = points[i];
+        let p2 = points[i + 1];
+        
+        pCtx.save();
+        
+        let size = 6; 
+        if (brush.pressureSize) size *= (p1.pressure * 1.4 + 0.2);
+        size = Math.max(0.8, size);
+        
+        if (brush.pressureOpacity) pCtx.globalAlpha = p1.pressure * 0.85 + 0.15;
+        
+        if (brush.behavior === 'chisel') {
+            pCtx.translate(p1.x, p1.y);
+            pCtx.rotate(-Math.PI / 4);
+            pCtx.fillRect(-size / 2, -size / 8, size, size / 4);
+        } else if (brush.softEdge) {
+            const radGrad = pCtx.createRadialGradient(p1.x, p1.y, size * 0.1, p1.x, p1.y, size);
+            radGrad.addColorStop(0, '#1c1c1e');
+            radGrad.addColorStop(1, '#1c1c1e00');
+            pCtx.fillStyle = radGrad;
+            pCtx.beginPath();
+            pCtx.arc(p1.x, p1.y, size, 0, Math.PI * 2);
+            pCtx.fill();
+        } else {
+            pCtx.lineWidth = size;
+            pCtx.lineCap = 'round';
+            pCtx.beginPath();
+            pCtx.moveTo(p1.x, p1.y);
+            pCtx.lineTo(p2.x, p2.y);
+            pCtx.stroke();
+        }
+        pCtx.restore();
+    }
+    pCtx.restore();
+    return previewCanvas;
+}
+
+// Modular Sub-Menu UI Generation Logic
+function renderModularBrushUI() {
+    // 1. Enforce strict single-column stacked sidebar view styles on layout containers
+    if (brushVariantsGrid) {
+        brushVariantsGrid.style.display = 'flex';
+        brushVariantsGrid.style.flexDirection = 'column';
+        brushVariantsGrid.style.gap = '6px';
+        brushVariantsGrid.style.padding = '8px';
+        brushVariantsGrid.style.overflowY = 'auto';
+    }
+
+    brushCategoriesList.innerHTML = '';
     const categories = Object.keys(BrushRegistry);
     categories.forEach(cat => {
         const btn = document.createElement('button');
@@ -1078,32 +1150,68 @@ function renderModularBrushUI() {
     
     Object.keys(variants).forEach(vKey => {
         const variant = variants[vKey];
+        
+        // 2. Build row container card matching standard professional studio specifications
         const card = document.createElement('div');
         card.className = `brush-variant-card ${vKey === activeBrushKey ? 'active' : ''}`;
         
-        // Click interaction triggers active key selection update
+        // Enforce structural inline styles to contain children completely inside bounds
+        card.style.display = 'flex';
+        card.style.flexDirection = 'row';
+        card.style.alignItems = 'center';
+        card.style.justifyContent = 'space-between';
+        card.style.width = '100%';
+        card.style.height = '54px';
+        card.style.minHeight = '54px';
+        card.style.boxSizing = 'border-box';
+        card.style.padding = '0 10px';
+        card.style.background = vKey === activeBrushKey ? '#2c2c2e' : '#1c1c1e';
+        card.style.borderBottom = '1px solid #2c2c2e';
+        card.style.cursor = 'pointer';
+
         card.addEventListener('click', () => {
             activeBrushKey = vKey;
             renderModularBrushUI();
         });
 
-        // Generate dynamic thumbnail image preview box dynamically
-        const previewCanvas = generateBrushPreview(variant);
-        previewCanvas.className = "brush-preview-frame";
-        card.appendChild(previewCanvas);
+        // Left Container Block: Labels and Canvas Previews
+        const leftMetaBlock = document.createElement('div');
+        leftMetaBlock.style.display = 'flex';
+        leftMetaBlock.style.flexDirection = 'column';
+        leftMetaBlock.style.justifyContent = 'center';
+        leftMetaBlock.style.gap = '2px';
+        leftMetaBlock.style.pointerEvents = 'none';
 
         const nameLabel = document.createElement('div');
         nameLabel.className = 'brush-card-name';
         nameLabel.textContent = variant.name;
-        card.appendChild(nameLabel);
+        nameLabel.style.color = '#ffffff';
+        nameLabel.style.fontSize = '13px';
+        nameLabel.style.fontWeight = '500';
+        
+        const previewCanvas = generateBrushPreview(variant);
+        previewCanvas.style.borderRadius = '4px';
+        previewCanvas.style.display = 'block';
 
+        leftMetaBlock.appendChild(nameLabel);
+        leftMetaBlock.appendChild(previewCanvas);
+        card.appendChild(leftMetaBlock);
+
+        // Right Container Block: Command Utility Actions Panel
         const rowActions = document.createElement('div');
         rowActions.className = 'brush-card-actions';
+        rowActions.style.display = 'flex';
+        rowActions.style.alignItems = 'center';
+        rowActions.style.gap = '8px';
 
         // Settings Selector Cog Setup
         const settingsBtn = document.createElement('button');
         settingsBtn.className = 'brush-card-icon';
-        settingsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3c.06-.61.06-.93 0-1.24l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.17 2.11 13.95 2 13.7 2h-4c-.25 0-.47.11-.5.35L8.82 5c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.31-.07.63-.07.94s.03.63.07.94l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.35.5.35h4c.25 0 .47-.11.5-.35l.38-2.65c.6-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>`;
+        settingsBtn.style.background = 'none';
+        settingsBtn.style.border = 'none';
+        settingsBtn.style.cursor = 'pointer';
+        settingsBtn.style.padding = '4px';
+        settingsBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="#aeaeb2"><path d="M19.14 12.94c.04-.3c.06-.61.06-.93 0-1.24l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.17 2.11 13.95 2 13.7 2h-4c-.25 0-.47.11-.5.35L8.82 5c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.31-.07.63-.07.94s.03.63.07.94l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.35.5.35h4c.25 0 .47-.11.5-.35l.38-2.65c.6-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>`;
         settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             openSettingsSchemaPanel(vKey, variant);
@@ -1113,7 +1221,11 @@ function renderModularBrushUI() {
         const starBtn = document.createElement('button');
         const isStarred = !!BrushRegistry.favorites[vKey];
         starBtn.className = `brush-card-icon ${isStarred ? 'starred' : ''}`;
-        starBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+        starBtn.style.background = 'none';
+        starBtn.style.border = 'none';
+        starBtn.style.cursor = 'pointer';
+        starBtn.style.padding = '4px';
+        starBtn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="${isStarred ? '#ffcc00' : '#48484a'}"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
         starBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (isStarred) {
@@ -1256,7 +1368,7 @@ function drawStroke(e) {
             activeLayer.ctx.restore();
             lastCoords = coords;
         } else {
-            lastCoords = BrushEngine.processStrokeSegment(activeLayer.ctx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
+            const dist = Math.hypot(coords.x - lastCoords.x, coords.y - lastCoords.y); coords.pressure = Math.max(0.15, Math.min(1.0, 15 / (dist + 1)));  lastCoords = BrushEngine.processStrokeSegment(activeLayer.ctx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
         }
     }
     
