@@ -122,7 +122,7 @@ canvas {
                       linear-gradient(-45deg, transparent 75%, #ccc 75%);
     background-size: 16px 16px;
     background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-    background-color: #f0f0f0; /* Default transparent checkerboard style backdrop pattern */
+    background-color: #f0f0f0; 
     box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
     border: 1px solid #2d2d2d;
     display: block;
@@ -178,7 +178,28 @@ canvas {
     width: 1px;
     height: 24px;
     background-color: #2a2a2a;
-    margin: 0 10px 0 0;
+    margin: 0 10px;
+}
+
+.brush-selectors {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.topbar-select {
+    background-color: #1e1e1e;
+    color: #fff;
+    border: 1px solid #3a3a3a;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+.topbar-select:hover {
+    border-color: #007acc;
 }
 
 .dropdown {
@@ -597,7 +618,6 @@ canvas {
     fill: currentColor;
 }
 
-/* Dynamic Ring Element styles */
 #brushLiveRing {
     position: fixed;
     pointer-events: none;
