@@ -26,6 +26,22 @@ const redoBtn = document.getElementById('redoBtn');
 const brushBtn = document.getElementById('brushBtn');
 const eraserBtn = document.getElementById('eraserBtn');
 
+// Modular Brush UI Elements
+const brushMenuDropdown = document.getElementById('brushMenuDropdown');
+const brushCategoriesList = document.getElementById('brushCategoriesList');
+const brushVariantsGrid = document.getElementById('brushVariantsGrid');
+const brushSettingsPanel = document.getElementById('brushSettingsPanel');
+const closeBrushSettingsBtn = document.getElementById('closeBrushSettingsBtn');
+const settingsPanelTitle = document.getElementById('settingsPanelTitle');
+
+// Schema Control Inputs
+const brushSettingSpacing = document.getElementById('brushSettingSpacing');
+const brushSettingStabilization = document.getElementById('brushSettingStabilization');
+const brushSettingTexture = document.getElementById('brushSettingTexture');
+const brushSettingPSize = document.getElementById('brushSettingPSize');
+const brushSettingPOpacity = document.getElementById('brushSettingPOpacity');
+const brushSettingPScatter = document.getElementById('brushSettingPScatter');
+
 const newFileBtn = document.getElementById('newFileBtn');
 const savePngBtn = document.getElementById('savePngBtn');
 const saveJpegBtn = document.getElementById('saveJpegBtn');
@@ -51,22 +67,6 @@ const clippingBtn = document.getElementById('clippingBtn');
 const alphaLockBtn = document.getElementById('alphaLockBtn');
 const blendModeSelect = document.getElementById('blendModeSelect');
 const layerOpacityRange = document.getElementById('layerOpacityRange');
-
-// NEW Brush UI Elements
-const brushLibraryPanel = document.getElementById('brushLibraryPanel');
-const brushCategoryColumn = document.getElementById('brushCategoryColumn');
-const brushVariantsColumn = document.getElementById('brushVariantsColumn');
-const brushSettingsModal = document.getElementById('brushSettingsModal');
-const closeBrushSettingsBtn = document.getElementById('closeBrushSettingsBtn');
-const brushSettingsTitle = document.getElementById('brushSettingsTitle');
-
-// Brush Settings Input Controls
-const brushSettingSpacing = document.getElementById('brushSettingSpacing');
-const brushSettingStabilization = document.getElementById('brushSettingStabilization');
-const brushSettingTexture = document.getElementById('brushSettingTexture');
-const brushSettingPressureSize = document.getElementById('brushSettingPressureSize');
-const brushSettingPressureOpacity = document.getElementById('brushSettingPressureOpacity');
-const brushSettingParticleCap = document.getElementById('brushSettingParticleCap');
 
 // State Tracking
 let scale = 1;
@@ -169,13 +169,9 @@ setupCustomSlider(opacSlider, opacTrackFill, opacHandle, opacBubble, 0, 100, 100
 brushBtn.addEventListener('click', (e) => {
     if (currentTool === 'brush') {
         e.stopPropagation();
-        menuDropdown.classList.remove('show');
         colorPanel.classList.remove('show');
-        layerSidebar.classList.remove('show');
-        brushLibraryPanel.classList.toggle('show');
-        if (brushLibraryPanel.classList.contains('show')) {
-            renderBrushLibrary();
-        }
+        menuDropdown.classList.remove('show');
+        brushMenuDropdown.classList.toggle('show');
     } else {
         currentTool = 'brush';
         brushBtn.classList.add('active');
@@ -187,21 +183,21 @@ eraserBtn.addEventListener('click', () => {
     currentTool = 'eraser';
     eraserBtn.classList.add('active');
     brushBtn.classList.remove('active');
-    brushLibraryPanel.classList.remove('show');
+    brushMenuDropdown.classList.remove('show');
 });
 
 // Sidebar & Dropdown Trigger Logic
 menuBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     colorPanel.classList.remove('show');
-    brushLibraryPanel.classList.remove('show');
+    brushMenuDropdown.classList.remove('show');
     menuDropdown.classList.toggle('show');
 });
 
 colorBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     menuDropdown.classList.remove('show');
-    brushLibraryPanel.classList.remove('show');
+    brushMenuDropdown.classList.remove('show');
     colorPanel.classList.toggle('show');
     if (colorPanel.classList.contains('show')) drawColorWheel();
 });
@@ -210,7 +206,7 @@ layerPanelBtn.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     menuDropdown.classList.remove('show');
     colorPanel.classList.remove('show');
-    brushLibraryPanel.classList.remove('show');
+    brushMenuDropdown.classList.remove('show');
     layerSidebar.classList.toggle('show');
 });
 
@@ -218,18 +214,24 @@ closeColorBtn.addEventListener('click', () => {
     colorPanel.classList.remove('show');
 });
 
-// Global Tap Listener
-window.addEventListener('pointerdown', (e) => {
-    if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) return; 
-    if (brushLibraryPanel.contains(e.target) || e.target.closest('#brushBtn') || e.target.closest('.brush-settings-modal')) return;
+closeBrushSettingsBtn.addEventListener('click', () => {
+    brushSettingsPanel.classList.remove('show');
+});
 
+// Global Tap Listener (Persistent Sidebar Exception Enabled)
+window.addEventListener('pointerdown', (e) => {
+    if (layerSidebar.contains(e.target) || layerPanelBtn.contains(e.target)) {
+        return; 
+    }
     if (!menuDropdown.contains(e.target) && e.target !== menuBtn) {
         menuDropdown.classList.remove('show');
     }
     if (!colorPanel.contains(e.target) && !colorBtn.contains(e.target)) {
         colorPanel.classList.remove('show');
     }
-    brushLibraryPanel.classList.remove('show');
+    if (!brushMenuDropdown.contains(e.target) && !brushBtn.contains(e.target) && !brushSettingsPanel.contains(e.target)) {
+        brushMenuDropdown.classList.remove('show');
+    }
 });
 
 // Canvas Preview Settings
@@ -568,7 +570,6 @@ newFileBtn.addEventListener('click', () => {
     startMenu.classList.remove('hidden');
     menuDropdown.classList.remove('show');
     layerSidebar.classList.remove('show');
-    brushLibraryPanel.classList.remove('show');
 });
 
 savePngBtn.addEventListener('click', () => {
@@ -781,318 +782,318 @@ function renderPalette() {
 }
 renderPalette();
 
-/* ==========================================
-   NEW MODULAR BRUSH ENGINE ARCHITECTURE
-   ========================================== */
-const BrushEngine = {
-    selectedCategory: 'ink',
-    selectedBrushId: 'hard_ink',
-    favorites: [],
-    
-    registry: {
-        ink: {
-            name: "Ink",
-            brushes: {
-                hard_ink: { name: "Hard Ink", desc: "Crisp lines & high stability", spacing: 0.03, stabilization: 12, texture: "none", pressureSize: true, pressureOpacity: false, particleCap: 100 },
-                soft_ink: { name: "Soft Ink", desc: "Slightly feathered edges", spacing: 0.04, stabilization: 8, texture: "none", pressureSize: true, pressureOpacity: true, particleCap: 100 },
-                calligraphy: { name: "Calligraphy Ink", desc: "Directional width variations", spacing: 0.02, stabilization: 15, texture: "none", pressureSize: true, pressureOpacity: false, particleCap: 100, isCalligraphy: true }
-            }
-        },
-        pencil: {
-            name: "Pencil",
-            brushes: {
-                light_pencil: { name: "Light Pencil", desc: "Low opacity sketch graphite", spacing: 0.12, stabilization: 2, texture: "grainy", pressureSize: false, pressureOpacity: true, particleCap: 120 },
-                graphite_pencil: { name: "Graphite Pencil", desc: "Strong heavy texture grain", spacing: 0.08, stabilization: 4, texture: "grainy", pressureSize: true, pressureOpacity: true, particleCap: 150 },
-                mechanical: { name: "Mechanical Pen", desc: "Clean consistent precision", spacing: 0.04, stabilization: 3, texture: "none", pressureSize: false, pressureOpacity: false, particleCap: 100 }
-            }
-        },
-        sketch: {
-            name: "Sketch",
-            brushes: {
-                rough_sketch: { name: "Rough Sketch", desc: "Low stability fast response", spacing: 0.06, stabilization: 1, texture: "grainy", pressureSize: true, pressureOpacity: true, particleCap: 100 },
-                clean_sketch: { name: "Clean Sketch", desc: "Balanced smoothing controls", spacing: 0.04, stabilization: 8, texture: "none", pressureSize: true, pressureOpacity: true, particleCap: 100 },
-                gesture: { name: "Gesture Layout", desc: "Very thin faint ideation lines", spacing: 0.05, stabilization: 2, texture: "none", pressureSize: false, pressureOpacity: false, opacityOverride: 0.2, particleCap: 100 }
-            }
-        },
-        marker: {
-            name: "Marker",
-            brushes: {
-                chisel: { name: "Chisel Marker", desc: "Broad angled flat stroke edges", spacing: 0.02, stabilization: 5, texture: "none", pressureSize: false, pressureOpacity: true, isChisel: true, particleCap: 100 },
-                round: { name: "Round Marker", desc: "Uniform dense broad coverage", spacing: 0.03, stabilization: 4, texture: "none", pressureSize: false, pressureOpacity: false, particleCap: 100 },
-                soft_marker: { name: "Soft Marker", desc: "Blended edges and rich falloff", spacing: 0.05, stabilization: 6, texture: "none", pressureSize: false, pressureOpacity: true, particleCap: 100 }
-            }
-        },
-        pen: {
-            name: "Pen",
-            brushes: {
-                fine_liner: { name: "Fine Liner", desc: "Thin completely uniform paths", spacing: 0.04, stabilization: 4, texture: "none", pressureSize: false, pressureOpacity: false, particleCap: 100 },
-                technical: { name: "Technical Pen", desc: "High strict uniformity mapping", spacing: 0.02, stabilization: 10, texture: "none", pressureSize: false, pressureOpacity: false, particleCap: 100 },
-                brush_pen: { name: "Brush Pen", desc: "Tapered dynamic pressure width", spacing: 0.03, stabilization: 9, texture: "none", pressureSize: true, pressureOpacity: false, particleCap: 100 }
-            }
-        },
-        spray: {
-            name: "Spray Paint",
-            brushes: {
-                soft_spray: { name: "Soft Spray", desc: "Wide scatter air-borne dots", spacing: 0.15, stabilization: 2, texture: "splat", pressureSize: true, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 25, particleCap: 150 },
-                hard_spray: { name: "Hard Spray", desc: "Dense tight grouped droplets", spacing: 0.08, stabilization: 3, texture: "splat", pressureSize: false, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 10, particleCap: 250 },
-                splatter: { name: "Splatter Spray", desc: "High random chaotic splotches", spacing: 0.30, stabilization: 1, texture: "splat", pressureSize: true, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 45, particleCap: 80 }
-            }
-        },
-        airbrush: {
-            name: "Airbrush",
-            brushes: {
-                soft_airbrush: { name: "Soft Airbrush", desc: "Smooth wide gradient fading", spacing: 0.02, stabilization: 5, texture: "none", pressureSize: false, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 15, particleCap: 300 },
-                controlled: { name: "Controlled Air", desc: "Balanced stream density flow", spacing: 0.03, stabilization: 6, texture: "none", pressureSize: false, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 8, particleCap: 200 },
-                focused: { name: "Focused Air", desc: "Narrow intense precision spray", spacing: 0.02, stabilization: 7, texture: "none", pressureSize: true, pressureOpacity: true, isAirbrushOrSpray: true, scatterAmt: 3, particleCap: 150 }
-            }
-        },
-        watercolor: {
-            name: "Watercolor",
-            brushes: {
-                light_wash: { name: "Light Wash", desc: "Low opacity soft layering layers", spacing: 0.06, stabilization: 4, texture: "splat", pressureSize: false, pressureOpacity: true, opacityOverride: 0.15, particleCap: 120 },
-                wet_blend: { name: "Wet Blend", desc: "High diffusion blending bleed", spacing: 0.04, stabilization: 6, texture: "splat", pressureSize: true, pressureOpacity: true, isWet: true, particleCap: 180 },
-                pigment_heavy: { name: "Pigment Wash", desc: "Heavy dark fringing borders", spacing: 0.03, stabilization: 8, texture: "grainy", pressureSize: true, pressureOpacity: false, isWet: true, particleCap: 220 }
-            }
-        }
+/* ==========================================================================
+   MODULAR BRUSH ENGINE ARCHITECTURE
+   ========================================================================== */
+
+const BrushRegistry = {
+    favorites: {},
+    ink: {
+        hard_ink: { name: "Hard Ink", spacing: 5, stabilization: 15, texture: 0, pressureSize: true, pressureOpacity: false, pressureScatter: false, behavior: 'standard' },
+        soft_ink: { name: "Soft Ink", spacing: 8, stabilization: 10, texture: 15, pressureSize: true, pressureOpacity: true, pressureScatter: false, behavior: 'standard', softEdge: true },
+        calligraphy: { name: "Calligraphy Ink", spacing: 3, stabilization: 25, texture: 0, pressureSize: true, pressureOpacity: false, pressureScatter: false, behavior: 'directional' }
     },
-
-    getActiveBrush() {
-        if (this.selectedCategory === 'favorites') {
-            return this.favorites.find(b => b.uid === this.selectedBrushId)?.config;
-        }
-        return this.registry[this.selectedCategory]?.brushes[this.selectedBrushId];
+    pencil: {
+        light_pencil: { name: "Light Pencil", spacing: 25, stabilization: 2, texture: 65, pressureSize: false, pressureOpacity: true, pressureScatter: true, behavior: 'standard' },
+        graphite_pencil: { name: "Graphite Pencil", spacing: 18, stabilization: 4, texture: 85, pressureSize: true, pressureOpacity: true, pressureScatter: true, behavior: 'standard' },
+        mechanical: { name: "Mechanical Pencil", spacing: 5, stabilization: 8, texture: 20, pressureSize: false, pressureOpacity: false, pressureScatter: false, behavior: 'standard' }
     },
-
-    renderStrokeSegment(ctx, p1, p2, size, opacity, color, pressure) {
-        const config = this.getActiveBrush() || { spacing: 0.04, stabilization: 5, texture: "none" };
-        
-        let calcSize = size;
-        if (config.pressureSize) calcSize *= (pressure * 1.3 || 0.5);
-        if (calcSize < 0.5) calcSize = 0.5;
-
-        let calcOpacity = opacity;
-        if (config.pressureOpacity) calcOpacity *= (pressure || 0.5);
-        if (config.opacityOverride !== undefined) calcOpacity *= config.opacityOverride;
-
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
-        ctx.globalAlpha = calcOpacity;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-
-        // Custom Rendering Pipelines based on configuration properties
-        if (config.isAirbrushOrSpray) {
-            const loops = Math.min(config.particleCap || 100, Math.floor(calcSize * (config.scatterAmt || 10) * 0.15));
-            for (let i = 0; i < loops; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * calcSize * 1.5;
-                const pX = p2.x + Math.cos(angle) * radius;
-                const pY = p2.y + Math.sin(angle) * radius;
-                ctx.globalAlpha = calcOpacity * (1.0 - (radius / (calcSize * 1.5)));
-                ctx.beginPath();
-                ctx.arc(pX, pY, Math.max(0.4, Math.random() * (calcSize * 0.08)), 0, Math.PI * 2);
-                ctx.fill();
-            }
-        } else if (config.isChisel) {
-            ctx.lineWidth = calcSize;
-            ctx.beginPath();
-            ctx.moveTo(p1.x - calcSize * 0.4, p1.y - calcSize * 0.2);
-            ctx.lineTo(p2.x - calcSize * 0.4, p2.y - calcSize * 0.2);
-            ctx.lineTo(p2.x + calcSize * 0.4, p2.y + calcSize * 0.2);
-            ctx.lineTo(p1.x + calcSize * 0.4, p1.y + calcSize * 0.2);
-            ctx.closePath();
-            ctx.fill();
-        } else if (config.isCalligraphy) {
-            const dx = p2.x - p1.x;
-            const dy = p2.y - p1.y;
-            const heading = Math.atan2(dy, dx);
-            const factor = Math.abs(Math.sin(heading - Math.PI / 4));
-            ctx.lineWidth = calcSize * (0.3 + factor * 1.2);
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-        } else if (config.isWet) {
-            ctx.beginPath();
-            ctx.arc(p2.x, p2.y, calcSize * 1.2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.globalAlpha = calcOpacity * 0.3;
-            ctx.lineWidth = calcSize * 1.4;
-            ctx.beginPath();
-            ctx.arc(p2.x, p2.y, calcSize * 1.4, 0, Math.PI * 2);
-            ctx.stroke();
-        } else if (config.texture === 'grainy') {
-            ctx.lineWidth = calcSize;
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-            
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.globalAlpha = 0.15;
-            for (let i = 0; i < calcSize * 2; i++) {
-                const rx = p2.x + (Math.random() - 0.5) * calcSize;
-                const ry = p2.y + (Math.random() - 0.5) * calcSize;
-                ctx.fillRect(rx, ry, 1, 1);
-            }
-        } else if (config.texture === 'splat') {
-            ctx.lineWidth = calcSize;
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-            for (let i = 0; i < 3; i++) {
-                const offX = p2.x + (Math.random() - 0.5) * calcSize * 1.4;
-                const offY = p2.y + (Math.random() - 0.5) * calcSize * 1.4;
-                ctx.beginPath();
-                ctx.arc(offX, offY, calcSize * 0.15, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        } else {
-            ctx.lineWidth = calcSize;
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-        }
-
-        ctx.restore();
+    sketch: {
+        rough_sketch: { name: "Rough Sketch", spacing: 35, stabilization: 1, texture: 40, pressureSize: false, pressureOpacity: true, pressureScatter: true, behavior: 'standard' },
+        clean_sketch: { name: "Clean Sketch", spacing: 12, stabilization: 12, texture: 10, pressureSize: true, pressureOpacity: true, pressureScatter: false, behavior: 'standard' },
+        gesture_sketch: { name: "Gesture Sketch", spacing: 40, stabilization: 0, texture: 5, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'standard' }
+    },
+    marker: {
+        chisel_marker: { name: "Chisel Marker", spacing: 8, stabilization: 6, texture: 10, pressureSize: false, pressureOpacity: false, pressureScatter: false, behavior: 'chisel' },
+        round_marker: { name: "Round Marker", spacing: 10, stabilization: 8, texture: 0, pressureSize: false, pressureOpacity: false, pressureScatter: false, behavior: 'standard' },
+        soft_marker: { name: "Soft Marker", spacing: 14, stabilization: 10, texture: 20, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'standard', softEdge: true }
+    },
+    pen: {
+        fine_liner: { name: "Fine Liner", spacing: 5, stabilization: 14, texture: 0, pressureSize: false, pressureOpacity: false, pressureScatter: false, behavior: 'standard' },
+        technical_pen: { name: "Technical Pen", spacing: 4, stabilization: 20, texture: 0, pressureSize: false, pressureOpacity: false, pressureScatter: false, behavior: 'standard' },
+        brush_pen: { name: "Brush Pen", spacing: 4, stabilization: 18, texture: 5, pressureSize: true, pressureOpacity: false, pressureScatter: false, behavior: 'tapered' }
+    },
+    spray_paint: {
+        soft_spray: { name: "Soft Spray", spacing: 40, stabilization: 2, texture: 0, pressureSize: true, pressureOpacity: true, pressureScatter: true, behavior: 'particle', particleDensity: 25, particleCap: 60 },
+        hard_spray: { name: "Hard Spray", spacing: 25, stabilization: 4, texture: 0, pressureSize: false, pressureOpacity: true, pressureScatter: true, behavior: 'particle', particleDensity: 65, particleCap: 120 },
+        splatter_spray: { name: "Splatter Spray", spacing: 70, stabilization: 1, texture: 0, pressureSize: true, pressureOpacity: false, pressureScatter: true, behavior: 'particle', particleDensity: 12, particleCap: 30, irregular: true }
+    },
+    airbrush: {
+        soft_airbrush: { name: "Soft Airbrush", spacing: 12, stabilization: 5, texture: 0, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'standard', softEdge: true, wideFalloff: true },
+        controlled_airbrush: { name: "Controlled Airbrush", spacing: 10, stabilization: 10, texture: 0, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'standard', softEdge: true },
+        focused_airbrush: { name: "Focused Airbrush", spacing: 6, stabilization: 12, texture: 0, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'standard', softEdge: true, narrowSpread: true }
+    },
+    watercolor: {
+        light_wash: { name: "Light Wash", spacing: 30, stabilization: 8, texture: 40, pressureSize: false, pressureOpacity: true, pressureScatter: false, behavior: 'watercolor', wetDiffusion: 0.2 },
+        wet_blend: { name: "Wet Blend", spacing: 20, stabilization: 14, texture: 50, pressureSize: true, pressureOpacity: true, pressureScatter: false, behavior: 'watercolor', wetDiffusion: 0.6, blending: true },
+        pigment_heavy: { name: "Pigment Heavy Wash", spacing: 15, stabilization: 10, texture: 75, pressureSize: true, pressureOpacity: false, pressureScatter: false, behavior: 'watercolor', wetDiffusion: 0.1, heavyEdge: true }
     }
 };
 
-// UI Rendering Engine logic for the Brush Categories/Variants
-function renderBrushLibrary() {
-    brushCategoryColumn.innerHTML = '';
-    
-    // 1. Favorites Category Tab Button Element
-    const favTab = document.createElement('button');
-    favTab.className = `category-tab-btn ${BrushEngine.selectedCategory === 'favorites' ? 'active' : ''}`;
-    favTab.innerHTML = `★ Favorites (${BrushEngine.favorites.length})`;
-    favTab.addEventListener('click', () => {
-        BrushEngine.selectedCategory = 'favorites';
-        renderBrushLibrary();
-    });
-    brushCategoryColumn.appendChild(favTab);
+let activeCategoryKey = 'ink';
+let activeBrushKey = 'hard_ink';
+let selectedSettingsTarget = null;
 
-    // 2. Standard Registered Category Tabs
-    Object.keys(BrushEngine.registry).forEach(catKey => {
-        const cat = BrushEngine.registry[catKey];
-        const tab = document.createElement('button');
-        tab.className = `category-tab-btn ${BrushEngine.selectedCategory === catKey ? 'active' : ''}`;
-        tab.textContent = cat.name;
-        tab.addEventListener('click', () => {
-            BrushEngine.selectedCategory = catKey;
-            const firstBrushId = Object.keys(cat.brushes)[0];
-            if (firstBrushId) BrushEngine.selectedBrushId = firstBrushId;
-            renderBrushLibrary();
-        });
-        brushCategoryColumn.appendChild(tab);
-    });
-
-    // 3. Render Right-Hand Column Brush Variant Cards
-    brushVariantsColumn.innerHTML = '';
-    let variantPool = {};
+const BrushEngine = {
+    strokeQueue: [],
     
-    if (BrushEngine.selectedCategory === 'favorites') {
-        BrushEngine.favorites.forEach(fav => {
-            variantPool[fav.uid] = fav.config;
-        });
-    } else {
-        variantPool = BrushEngine.registry[BrushEngine.selectedCategory]?.brushes || {};
+    getActiveBrush() {
+        if (BrushRegistry.favorites[activeBrushKey]) {
+            return BrushRegistry.favorites[activeBrushKey];
+        }
+        return BrushRegistry[activeCategoryKey]?.[activeBrushKey] || BrushRegistry.ink.hard_ink;
+    },
+
+    processStrokeSegment(targetCtx, p1, p2, baseSize, baseOpacity, hexColor) {
+        const brush = this.getActiveBrush();
+        
+        // 1. Centralized Pointer Stabilization (EMA Engine)
+        const stabFactor = (brush.stabilization || 0) + 1;
+        p2.x = p1.x + (p2.x - p1.x) / stabFactor;
+        p2.y = p1.y + (p2.y - p1.y) / stabFactor;
+
+        const distance = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        const steps = Math.max(1, distance / Math.max(1, (baseSize * (brush.spacing / 100))));
+        
+        // Performance constraint throttling for performance-heavy modules
+        if ((brush.behavior === 'particle' || brush.behavior === 'watercolor') && steps > 120) {
+            return p2; 
+        }
+
+        // 2. Continuous Linear Interpolation Stamp Pipeline
+        for (let i = 0; i < steps; i++) {
+            const t = i / steps;
+            const cx = p1.x + (p2.x - p1.x) * t;
+            const cy = p1.y + (p2.y - p1.y) * t;
+            const pressure = p1.pressure + (p2.pressure - p1.pressure) * t;
+
+            // Compute dynamic properties from pressure mapping schema
+            let dynamicSize = baseSize;
+            if (brush.pressureSize) dynamicSize *= (pressure * 1.5 + 0.2);
+            dynamicSize = Math.max(0.5, dynamicSize);
+
+            let dynamicOpacity = baseOpacity;
+            if (brush.pressureOpacity) dynamicOpacity *= (pressure * 0.85 + 0.15);
+
+            let scatterOffset = { x: 0, y: 0 };
+            if (brush.pressureScatter) {
+                const maxScatter = dynamicSize * (brush.texture / 20 + 1);
+                scatterOffset.x = (Math.random() - 0.5) * maxScatter * pressure;
+                scatterOffset.y = (Math.random() - 0.5) * maxScatter * pressure;
+            }
+
+            this.executeVariantRender(targetCtx, cx + scatterOffset.x, cy + scatterOffset.y, dynamicSize, dynamicOpacity, hexColor, pressure, p1, p2, brush);
+        }
+        return p2;
+    },
+
+    executeVariantRender(tCtx, x, y, size, opacity, color, pressure, p1, p2, brush) {
+        tCtx.save();
+        tCtx.fillStyle = color;
+        tCtx.strokeStyle = color;
+        tCtx.globalAlpha = opacity;
+
+        // Apply shared texture parameters via composite masking simulations
+        if (brush.texture > 0 && brush.behavior !== 'particle') {
+            if (Math.random() * 100 < brush.texture) {
+                size *= (0.75 + Math.random() * 0.4);
+            }
+        }
+
+        switch (brush.behavior) {
+            case 'directional':
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                const angle = Math.atan2(dy, dx);
+                tCtx.translate(x, y);
+                tCtx.rotate(angle);
+                tCtx.beginPath();
+                tCtx.ellipse(0, 0, size * 1.4 * (pressure + 0.3), size * 0.4, 0, 0, Math.PI * 2);
+                tCtx.fill();
+                break;
+
+            case 'chisel':
+                tCtx.translate(x, y);
+                tCtx.rotate(-Math.PI / 4); // Static 45-deg angled variant
+                tCtx.fillRect(-size / 2, -size / 8, size, size / 4);
+                break;
+
+            case 'tapered':
+                const velocity = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                const taperSize = Math.max(0.2, size * (1.0 - Math.min(1, velocity / 30)));
+                tCtx.beginPath();
+                tCtx.arc(x, y, taperSize, 0, Math.PI * 2);
+                tCtx.fill();
+                break;
+
+            case 'particle':
+                const cap = brush.particleCap || 50;
+                const count = Math.min(cap, Math.round((brush.particleDensity || 20) * (pressure + 0.5)));
+                const radius = size * (brush.irregular ? 2.5 : 1.8);
+                
+                for (let p = 0; p < count; p++) {
+                    const ang = Math.random() * Math.PI * 2;
+                    const dist = brush.irregular ? (Math.pow(Math.random(), 2) * radius) : (Math.random() * radius);
+                    const px = x + Math.cos(ang) * dist;
+                    const py = y + Math.sin(ang) * dist;
+                    const pSize = brush.irregular ? (Math.random() * 3 + 0.5) : Math.max(0.4, size * 0.06 * Math.random());
+                    
+                    tCtx.globalAlpha = opacity * (brush.irregular ? 0.8 : (1.0 - (dist / radius)));
+                    tCtx.beginPath();
+                    tCtx.arc(px, py, pSize, 0, Math.PI * 2);
+                    tCtx.fill();
+                }
+                break;
+
+            case 'watercolor':
+                const diffusion = size * (brush.wetDiffusion || 0.3) * (pressure + 0.2);
+                const grad = tCtx.createRadialGradient(x, y, size * 0.1, x, y, size + diffusion);
+                
+                if (brush.heavyEdge) {
+                    grad.addColorStop(0, color);
+                    grad.addColorStop(0.7, color + "22");
+                    grad.addColorStop(0.95, color + "aa");
+                    grad.addColorStop(1, color + "00");
+                } else if (brush.blending) {
+                    grad.addColorStop(0, color);
+                    grad.addColorStop(0.4, color + "66");
+                    grad.addColorStop(1, "#ffffff00");
+                } else {
+                    grad.addColorStop(0, color);
+                    grad.addColorStop(0.5, color + "44");
+                    grad.addColorStop(1, color + "00");
+                }
+                
+                tCtx.fillStyle = grad;
+                tCtx.beginPath();
+                tCtx.arc(x, y, size + diffusion, 0, Math.PI * 2);
+                tCtx.fill();
+                break;
+
+            case 'standard':
+default:
+                if (brush.softEdge) {
+                    const falloff = brush.wideFalloff ? 0.01 : (brush.narrowSpread ? 0.6 : 0.3);
+                    const radGrad = tCtx.createRadialGradient(x, y, size * falloff, x, y, size);
+                    radGrad.addColorStop(0, color);
+                    radGrad.addColorStop(1, color + "00");
+                    tCtx.fillStyle = radGrad;
+                }
+                tCtx.beginPath();
+                tCtx.arc(x, y, size, 0, Math.PI * 2);
+                tCtx.fill();
+                break;
+        }
+        tCtx.restore();
     }
+};
 
-    Object.keys(variantPool).forEach(bId => {
-        const brush = variantPool[bId];
+// Modular Sub-Menu UI Generation Logic
+function renderModularBrushUI() {
+    brushCategoriesList.innerHTML = '';
+    
+    // Inject Favorites Virtual Category alongside the 7 required types
+    const categories = Object.keys(BrushRegistry);
+    categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = `category-btn ${cat === activeCategoryKey ? 'active' : ''}`;
+        btn.textContent = cat.replace('_', ' ');
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activeCategoryKey = cat;
+            renderModularBrushUI();
+        });
+        brushCategoriesList.appendChild(btn);
+    });
+
+    brushVariantsGrid.innerHTML = '';
+    const variants = BrushRegistry[activeCategoryKey] || {};
+    
+    Object.keys(variants).forEach(vKey => {
+        const variant = variants[vKey];
         const card = document.createElement('div');
-        card.className = `brush-variant-card ${BrushEngine.selectedBrushId === bId ? 'active' : ''}`;
+        card.className = `brush-variant-card ${vKey === activeBrushKey ? 'active' : ''}`;
         
         card.addEventListener('click', () => {
-            BrushEngine.selectedBrushId = bId;
-            renderBrushLibrary();
+            activeBrushKey = vKey;
+            renderModularBrushUI();
         });
 
-        const nameText = document.createElement('div');
-        nameText.className = 'brush-card-name';
-        nameText.textContent = brush.name;
+        const nameLabel = document.createElement('div');
+        nameLabel.className = 'brush-card-name';
+        nameLabel.textContent = variant.name;
+        card.appendChild(nameLabel);
 
-        const descText = document.createElement('div');
-        descText.className = 'brush-card-desc';
-        descText.textContent = brush.desc || "Configurable preset";
+        const rowActions = document.createElement('div');
+        rowActions.className = 'brush-card-actions';
 
-        // Star Toggle Behavior Icon
-        const star = document.createElement('span');
-        const isCurrentlyStarred = BrushEngine.favorites.some(f => f.uid === bId || (BrushEngine.selectedCategory !== 'favorites' && f.uid === `${BrushEngine.selectedCategory}_${bId}`));
-        star.className = `brush-card-star ${isCurrentlyStarred ? 'starred' : ''}`;
-        star.innerHTML = '★';
-        star.addEventListener('click', (e) => {
+        // Settings Selector Cog Setup
+        const settingsBtn = document.createElement('button');
+        settingsBtn.className = 'brush-card-icon';
+        settingsBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3c.06-.61.06-.93 0-1.24l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.17 2.11 13.95 2 13.7 2h-4c-.25 0-.47.11-.5.35L8.82 5c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.31-.07.63-.07.94s.03.63.07.94l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.35.5.35h4c.25 0 .47-.11.5-.35l.38-2.65c.6-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z"/></svg>`;
+        settingsBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            const lookupId = BrushEngine.selectedCategory === 'favorites' ? bId : `${BrushEngine.selectedCategory}_${bId}`;
-            if (BrushEngine.favorites.some(f => f.uid === lookupId)) {
-                BrushEngine.favorites = BrushEngine.favorites.filter(f => f.uid !== lookupId);
-                if (BrushEngine.selectedCategory === 'favorites') BrushEngine.selectedBrushId = '';
+            openSettingsSchemaPanel(vKey, variant);
+        });
+
+        // Favorite Star Handler
+        const starBtn = document.createElement('button');
+        const isStarred = !!BrushRegistry.favorites[vKey];
+        starBtn.className = `brush-card-icon ${isStarred ? 'starred' : ''}`;
+        starBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>`;
+        starBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isStarred) {
+                delete BrushRegistry.favorites[vKey];
             } else {
-                BrushEngine.favorites.push({ uid: lookupId, config: brush });
+                BrushRegistry.favorites[vKey] = variant;
             }
-            renderBrushLibrary();
+            renderModularBrushUI();
         });
 
-        // Settings Parameter Configuration Trigger Icon
-        const gear = document.createElement('span');
-        gear.className = 'brush-card-gear';
-        gear.innerHTML = '&#9881;';
-        gear.addEventListener('click', (e) => {
-            e.stopPropagation();
-            openBrushSettingsModal(bId, brush);
-        });
-
-        card.appendChild(nameText);
-        card.appendChild(descText);
-        card.appendChild(star);
-        card.appendChild(gear);
-        brushVariantsColumn.appendChild(card);
+        rowActions.appendChild(settingsBtn);
+        rowActions.appendChild(starBtn);
+        card.appendChild(rowActions);
+        brushVariantsGrid.appendChild(card);
     });
 }
 
-// Gear Configuration Modal Bindings Logic
-let tuningBrushRef = null;
-function openBrushSettingsModal(id, brush) {
-    tuningBrushRef = brush;
-    brushSettingsTitle.textContent = `${brush.name} Configuration`;
+function openSettingsSchemaPanel(key, variant) {
+    selectedSettingsTarget = variant;
+    settingsPanelTitle.textContent = variant.name;
     
-    brushSettingSpacing.value = brush.spacing;
-    brushSettingStabilization.value = brush.stabilization;
-    brushSettingTexture.value = brush.texture;
-    brushSettingPressureSize.checked = brush.pressureSize;
-    brushSettingPressureOpacity.checked = brush.pressureOpacity;
-    brushSettingParticleCap.value = brush.particleCap || 100;
-
-    brushSettingsModal.classList.add('show');
+    brushSettingSpacing.value = variant.spacing;
+    brushSettingStabilization.value = variant.stabilization;
+    brushSettingTexture.value = variant.texture;
+    brushSettingPSize.checked = variant.pressureSize;
+    brushSettingPOpacity.checked = variant.pressureOpacity;
+    brushSettingPScatter.checked = variant.pressureScatter;
+    
+    brushSettingsPanel.classList.add('show');
 }
 
-closeBrushSettingsBtn.addEventListener('click', () => {
-    brushSettingsModal.classList.remove('show');
-});
-
-[brushSettingSpacing, brushSettingStabilization, brushSettingTexture, brushSettingParticleCap].forEach(ctrl => {
-    ctrl.addEventListener('change', () => {
-        if (!tuningBrushRef) return;
-        tuningBrushRef.spacing = parseFloat(brushSettingSpacing.value);
-        tuningBrushRef.stabilization = parseInt(brushSettingStabilization.value);
-        tuningBrushRef.texture = brushSettingTexture.value;
-        tuningBrushRef.particleCap = parseInt(brushSettingParticleCap.value);
+// Map Live Changes back to Object Instances
+[brushSettingSpacing, brushSettingStabilization, brushSettingTexture, brushSettingPSize, brushSettingPOpacity, brushSettingPScatter].forEach(elem => {
+    elem.addEventListener('change', () => {
+        if (!selectedSettingsTarget) return;
+        selectedSettingsTarget.spacing = parseInt(brushSettingSpacing.value);
+        selectedSettingsTarget.stabilization = parseInt(brushSettingStabilization.value);
+        selectedSettingsTarget.texture = parseInt(brushSettingTexture.value);
+        selectedSettingsTarget.pressureSize = brushSettingPSize.checked;
+        selectedSettingsTarget.pressureOpacity = brushSettingPOpacity.checked;
+        selectedSettingsTarget.pressureScatter = brushSettingPScatter.checked;
     });
 });
 
-[brushSettingPressureSize, brushSettingPressureOpacity].forEach(ctrl => {
-    ctrl.addEventListener('click', () => {
-        if (!tuningBrushRef) return;
-        tuningBrushRef.pressureSize = brushSettingPressureSize.checked;
-        tuningBrushRef.pressureOpacity = brushSettingPressureOpacity.checked;
-    });
-});
+renderModularBrushUI();
 
-// Structural Canvas Coordinates Solver
+// Core Drawing Logic Connection Points
+function attachDrawingListeners() {
+    canvas.addEventListener('pointerdown', startDrawing);
+    canvas.addEventListener('pointermove', drawStroke);
+    window.addEventListener('pointerup', stopDrawing);
+}
+
 function getCanvasCoordinates(e) {
     const rect = transformContainer.getBoundingClientRect();
     const rad = (-rotation * Math.PI) / 180;
@@ -1104,19 +1105,12 @@ function getCanvasCoordinates(e) {
     
     return {
         x: xRot / scale + canvas.width / 2,
-        y: yRot / scale + canvas.height / 2
+        y: yRot / scale + canvas.height / 2,
+        pressure: e.pressure || 0.5
     };
 }
 
-// Drawing Pipeline Initialization
-function attachDrawingListeners() {
-    canvas.addEventListener('pointerdown', startDrawing);
-    canvas.addEventListener('pointermove', drawStroke);
-    window.addEventListener('pointerup', stopDrawing);
-}
-
 let lastCoords = null;
-let stabilizationHistory = [];
 
 function startDrawing(e) {
     if (activePointers.length >= 2) return; 
@@ -1130,13 +1124,11 @@ function startDrawing(e) {
 
     const coords = getCanvasCoordinates(e);
     lastCoords = coords;
-    
-    stabilizationHistory = [];
-    stabilizationHistory.push(coords);
 
     if (activeLayer.alphaLock) {
         alphaBackupCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaBackupCtx.drawImage(activeLayer.canvas, 0, 0);
+
         alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
         alphaScratchCtx.drawImage(activeLayer.canvas, 0, 0);
     }
@@ -1151,76 +1143,50 @@ function drawStroke(e) {
     if (!activeLayer) return;
 
     strokeHasPainted = true;
-    const rawCoords = getCanvasCoordinates(e);
+    const coords = getCanvasCoordinates(e);
     
-    // Centralized Stabilization & Smoothing Engine Filter
-    const activeBrushConfig = BrushEngine.getActiveBrush() || { stabilization: 5, spacing: 0.04 };
-    stabilizationHistory.push(rawCoords);
-    if (stabilizationHistory.length > activeBrushConfig.stabilization) {
-        stabilizationHistory.shift();
-    }
-    
-    let sumX = 0, sumY = 0;
-    stabilizationHistory.forEach(pt => { sumX += pt.x; sumY += pt.y; });
-    const coords = {
-        x: sumX / stabilizationHistory.length,
-        y: sumY / stabilizationHistory.length
-    };
-
-    // Sub-segment Distance Interpolation Generator Loop based on Spacing Parameter values
-    const distance = Math.hypot(coords.x - lastCoords.x, coords.y - lastCoords.y);
-    const minSpacingDist = Math.max(1, currentBrushSize * activeBrushConfig.spacing);
-    const steps = Math.floor(distance / minSpacingDist);
-    
-    const targetCtx = activeLayer.alphaLock ? alphaScratchCtx : activeLayer.ctx;
-
     if (activeLayer.alphaLock) {
-        alphaScratchCtx.clearRect(0, 0, canvas.width, canvas.height);
-        alphaScratchCtx.drawImage(alphaBackupCanvas, 0, 0);
-    }
-
-    if (currentTool === 'eraser') {
-        targetCtx.save();
-        targetCtx.lineWidth = currentBrushSize;
-        targetCtx.lineCap = 'round';
-        targetCtx.lineJoin = 'round';
-        targetCtx.globalCompositeOperation = 'destination-out';
-        targetCtx.strokeStyle = 'rgba(0,0,0,1.0)';
-        targetCtx.beginPath();
-        targetCtx.moveTo(lastCoords.x, lastCoords.y);
-        targetCtx.lineTo(coords.x, coords.y);
-        targetCtx.stroke();
-        targetCtx.restore();
-    } else {
-        // Core routing loop mapping processed segments into active brush instance
-        if (steps > 0) {
-            for (let i = 0; i <= steps; i++) {
-                const t = i / steps;
-                const p1 = {
-                    x: lastCoords.x + (coords.x - lastCoords.x) * (Math.max(0, t - 0.1)),
-                    y: lastCoords.y + (coords.y - lastCoords.y) * (Math.max(0, t - 0.1))
-                };
-                const p2 = {
-                    x: lastCoords.x + (coords.x - lastCoords.x) * t,
-                    y: lastCoords.y + (coords.y - lastCoords.y) * t
-                };
-                BrushEngine.renderStrokeSegment(targetCtx, p1, p2, currentBrushSize, currentOpacity, activeColor, e.pressure || 0.5);
-            }
+        if (currentTool === 'eraser') {
+            alphaScratchCtx.save();
+            alphaScratchCtx.lineWidth = currentBrushSize;
+            alphaScratchCtx.lineCap = 'round';
+            alphaScratchCtx.lineJoin = 'round';
+            alphaScratchCtx.globalCompositeOperation = 'destination-out';
+            alphaScratchCtx.beginPath();
+            alphaScratchCtx.moveTo(lastCoords.x, lastCoords.y);
+            alphaScratchCtx.lineTo(coords.x, coords.y);
+            alphaScratchCtx.stroke();
+            alphaScratchCtx.restore();
         } else {
-            BrushEngine.renderStrokeSegment(targetCtx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor, e.pressure || 0.5);
+            lastCoords = BrushEngine.processStrokeSegment(alphaScratchCtx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
         }
-    }
 
-    if (activeLayer.alphaLock) {
         activeLayer.ctx.clearRect(0, 0, canvas.width, canvas.height);
         activeLayer.ctx.drawImage(alphaScratchCanvas, 0, 0);
+
         activeLayer.ctx.save();
         activeLayer.ctx.globalCompositeOperation = 'destination-in';
         activeLayer.ctx.drawImage(alphaBackupCanvas, 0, 0);
         activeLayer.ctx.restore();
+    } else {
+        if (currentTool === 'eraser') {
+            activeLayer.ctx.save();
+            activeLayer.ctx.lineWidth = currentBrushSize;
+            activeLayer.ctx.lineCap = 'round';
+            activeLayer.ctx.lineJoin = 'round';
+            activeLayer.ctx.globalCompositeOperation = 'destination-out';
+            activeLayer.ctx.strokeStyle = 'rgba(0,0,0,1.0)';
+            activeLayer.ctx.beginPath();
+            activeLayer.ctx.moveTo(lastCoords.x, lastCoords.y);
+            activeLayer.ctx.lineTo(coords.x, coords.y);
+            activeLayer.ctx.stroke();
+            activeLayer.ctx.restore();
+            lastCoords = coords;
+        } else {
+            lastCoords = BrushEngine.processStrokeSegment(activeLayer.ctx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
+        }
     }
     
-    lastCoords = coords;
     compositeCanvasStack();
 }
 
@@ -1228,7 +1194,6 @@ function stopDrawing() {
     if (drawing) {
         drawing = false;
         lastCoords = null;
-        stabilizationHistory = [];
         
         if (strokeHasPainted && currentTool === 'brush') {
             commitColorToPalette(activeColor);
@@ -1257,7 +1222,7 @@ function getAngle(p1, p2) {
 }
 
 const handlePointerDownGlobal = (e) => {
-    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar') || e.target.closest('.brush-settings-modal')) return;
+    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar') || e.target.closest('.brush-menu-dropdown') || e.target.closest('.brush-settings-panel')) return;
 
     if (activePointers.some(p => p.pointerId === e.pointerId)) return;
     activePointers.push(e);
@@ -1324,7 +1289,7 @@ window.addEventListener('pointerup', handlePointerUp);
 window.addEventListener('pointercancel', handlePointerUp);
 
 workspace.addEventListener('wheel', (e) => {
-    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar') || e.target.closest('.brush-settings-modal')) return;
+    if (e.target.closest('.top-bar') || e.target.closest('.left-controls') || e.target.closest('.color-panel') || e.target.closest('.layer-sidebar')) return;
     e.preventDefault();
     const zoomFactor = 1.1;
     let targetScale = scale;
