@@ -51,24 +51,24 @@
                 <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0 0 18c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01a1.49 1.49 0 0 1-.22-.84c0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3-3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm4.5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm3 3a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/></svg>
             </button>
             
-            <button class="icon-btn active" id="brushBtn" title="Brush">
-                <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92.62 2.1 1 3.5 1 2.5 0 4.5-2 4.5-4.5 0-.41-.15-.77-.32-1.15l-1.35-2.7L7 14zm14.37-9c.39-.39.39-1.02 0-1.41L19.41.63a.996.996 0 0 0-1.41 0L6.67 11.96l2.37 2.37L21.37 5z"/></svg>
-            </button>
+            <div class="brush-btn-container" style="position: relative; display: inline-block;">
+                <button class="icon-btn active" id="brushBtn" title="Brush">
+                    <svg viewBox="0 0 24 24"><path d="M7 14c-1.66 0-3 1.34-3 3 0 1.31-1.16 2-2 2 .92.62 2.1 1 3.5 1 2.5 0 4.5-2 4.5-4.5 0-.41-.15-.77-.32-1.15l-1.35-2.7L7 14zm14.37-9c.39-.39.39-1.02 0-1.41L19.41.63a.996.996 0 0 0-1.41 0L6.67 11.96l2.37 2.37L21.37 5z"/></svg>
+                </button>
+                
+                <div id="brushLibraryPanel" class="brush-library-panel">
+                    <div class="brush-library-layout">
+                        <div id="brushCategoryColumn" class="brush-category-column">
+                            </div>
+                        <div id="brushVariantsColumn" class="brush-variants-column">
+                            </div>
+                    </div>
+                </div>
+            </div>
 
             <button class="icon-btn" id="eraserBtn" title="Eraser">
                 <svg viewBox="0 0 24 24"><path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.03 20c.39.39.9.59 1.41.59h11.14c.51 0 1.02-.2 1.41-.59l4.43-4.44c.78-.78.78-2.05 0-2.83l-6.87-6.87c-.39-.39-.9-.59-1.41-.59h-1.41zM14 6l6.88 6.88-3 3L11 9l3-3z"/></svg>
             </button>
-            
-            <div class="divider"></div>
-
-            <div class="brush-selectors">
-                <select id="brushCategorySelect" class="topbar-select" title="Brush Category">
-                    </select>
-                <select id="brushVariantSelect" class="topbar-select" title="Brush Variant">
-                    </select>
-            </div>
-
-            <div class="divider"></div>
             
             <button class="icon-btn" id="transformBtn" title="Transform">
                 <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4H9V2H2v7h2V5.41l5.17 5.17 1.42-1.41zM14.5 4l5.17 5.17 1.42-1.41L15.91 4H19V2h-7v7h2V5.41zm-5.33 10.59L4 19.76V16H2v7h7v-2H5.41l5.17-5.17-1.41-1.42zM14.5 14.5l1.41-1.42L21 18.24V15h2v7h-7v-2h3.59l-5.1-5.1z"/></svg>
@@ -90,6 +90,43 @@
             <button class="icon-btn" id="layerPanelBtn" title="Layers" style="margin-left: auto; margin-right: 0;">
                 <svg viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
             </button>
+        </div>
+
+        <div id="brushSettingsModal" class="brush-settings-modal">
+            <div class="brush-settings-content">
+                <div class="panel-header">
+                    <span id="brushSettingsTitle" class="panel-title">Brush Parameters Settings</span>
+                    <button id="closeBrushSettingsBtn" class="close-panel-btn">&times;</button>
+                </div>
+                <div class="brush-settings-scroll-body">
+                    <div class="setting-row">
+                        <label>Base Spacing Rate:</label>
+                        <input type="range" id="brushSettingSpacing" min="0.02" max="1" step="0.01">
+                    </div>
+                    <div class="setting-row">
+                        <label>Stabilization Smoothing Strength:</label>
+                        <input type="range" id="brushSettingStabilization" min="1" max="25" step="1">
+                    </div>
+                    <div class="setting-row">
+                        <label>Surface Grain Grain/Texture Type:</label>
+                        <select id="brushSettingTexture" class="sidebar-select">
+                            <option value="none">Smooth Continuous Fluid</option>
+                            <option value="grainy">Coarse Dense Charcoal Grain</option>
+                            <option value="splat">Fragmented Fluid Organic Fibers</option>
+                        </select>
+                    </div>
+                    <div class="setting-row check-row">
+                        <label><input type="checkbox" id="brushSettingPressureSize"> Map Tablet Pressure to Path Size Width</label>
+                    </div>
+                    <div class="setting-row check-row">
+                        <label><input type="checkbox" id="brushSettingPressureOpacity"> Map Tablet Pressure to Density Opacity</label>
+                    </div>
+                    <div class="setting-row">
+                        <label>Max Asset Render Cap Restriction Pool:</label>
+                        <input type="range" id="brushSettingParticleCap" min="10" max="400" step="10">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div id="colorPanel" class="color-panel">
@@ -148,7 +185,7 @@
                         <option value="linear-burn">Linear Burn</option>
                         <option value="lighten">Lighten</option>
                         <option value="color-dodge">Color Dodge</option>
-                        <option value="linear-dodge">(Add)</option>
+                        <option value="linear-dodge">Linear Dodge (Add)</option>
                         <option value="lighter-color">Lighter Color</option>
                         <option value="soft-light">Soft Light</option>
                         <option value="hard-light">Hard Light</option>
