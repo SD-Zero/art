@@ -970,8 +970,11 @@ const BrushEngine = {
                 tCtx.fill();
                 break;
 
-            case 'standard':
+case 'standard':
 default:
+                if (brush.pressureOpacity) {
+                    tCtx.globalAlpha = opacity * (pressure * 0.85 + 0.15);
+                }
                 if (brush.softEdge) {
                     const falloff = brush.wideFalloff ? 0.01 : (brush.narrowSpread ? 0.6 : 0.3);
                     const radGrad = tCtx.createRadialGradient(x, y, size * falloff, x, y, size);
@@ -1368,7 +1371,7 @@ function drawStroke(e) {
             activeLayer.ctx.restore();
             lastCoords = coords;
         } else {
-            const dist = Math.hypot(coords.x - lastCoords.x, coords.y - lastCoords.y); coords.pressure = Math.max(0.15, Math.min(1.0, 15 / (dist + 1)));  lastCoords = BrushEngine.processStrokeSegment(activeLayer.ctx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
+            lastCoords = BrushEngine.processStrokeSegment(activeLayer.ctx, lastCoords, coords, currentBrushSize, currentOpacity, activeColor);
         }
     }
     
